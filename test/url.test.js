@@ -185,3 +185,21 @@ test('url mode: a demo page whose form is a JavaScript Typeform embed needs a br
   assert.equal(form.scheduler, false);
   assert.match(r2.findings.find((x) => x.ruleId === 'cta-journey').message, /"I'm a clinician" redirects to partners\.acme\.test\/join; no booking step/);
 });
+
+test('llms-txt-cta: llms.txt names a different demo link from the page button', async () => {
+  const home = '<!doctype html><html lang="en"><head><title>Acme</title></head><body><main><h1>Acme</h1><a href="https://calendly.com/acme/growth-demo">Book a demo</a></main></body></html>';
+  const llms = (url) => `# Acme\n\n> Analytics for product teams.\n\n## Get started\n\n- [Book a demo](${url}): 30-minute call with the team\n- [Docs](https://acme.test/docs): how it works\n`;
+  const calendly = '<!doctype html><html><head><title>Calendly</title><script src="/app.js"></script></head><body><div id="root"></div></body></html>';
+  const routes = (url) => ({
+    'https://acme.test/': { body: home },
+    'https://acme.test/llms.txt': { body: llms(url), headers: { 'content-type': 'text/plain' } },
+    'https://calendly.com/acme/growth-demo': { body: calendly },
+  });
+  const r = await check({ url: 'https://acme.test/', fetchImpl: fakeFetch(routes('https://calendly.com/acme/old-demo')) });
+  const f = r.findings.filter((x) => x.ruleId === 'llms-txt-cta');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].line, 7);
+  assert.match(f[0].message, /llms\.txt links "Book a demo" \(calendly\.com\/acme\/old-demo\) to book a demo or call, but the page's "Book a demo" goes to calendly\.com\/acme\/growth-demo/);
+  const same = await check({ url: 'https://acme.test/', fetchImpl: fakeFetch(routes('https://calendly.com/acme/growth-demo/')) });
+  assert.equal(same.findings.filter((x) => x.ruleId === 'llms-txt-cta').length, 0);
+});

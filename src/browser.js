@@ -4,7 +4,7 @@
 import { CTA_TEXT } from './rules/_util.js';
 
 export const TEST_DATA = {
-  first: 'Agent', last: 'Test', full: 'Agent Test', email: 'agent.test@example.com', phone: '07400 123456',
+  first: 'Agent', last: 'Test', full: 'Agent Test', email: 'agent.test@example.com', phone: '+44 7400 123456',
   company: 'Example Ltd', url: 'https://example.com', text: 'Agent test', password: 'Agent-test-only-1',
 };
 
@@ -74,6 +74,28 @@ export function diffCtas(server, rendered) {
   return out;
 }
 
+// example.co.uk -> example.co.uk, api.example.com -> example.com
+export const siteOf = (u) => {
+  try {
+    const parts = new URL(u).hostname.split('.');
+    return parts.slice(/^(co|com|org|net|ac|gov)$/.test(parts[parts.length - 2]) && parts.length > 2 ? -3 : -2).join('.');
+  } catch { return null; }
+};
+
+/** Validation messages that may come from a server check the walker blocked rather than from the input. */
+export function noteBlockedChecks(res, blockedUrls) {
+  const sites = new Set(res.steps.map((s) => siteOf(s.url)));
+  const hit = [...new Set(blockedUrls.filter((u) => sites.has(siteOf(u))).map((u) => { try { return new URL(u).host; } catch { return u; } }))];
+  if (!hit.length) return;
+  let flagged = false;
+  res.friction = res.friction.map((f) => (/^validation messages/.test(f) ? (flagged = true, `${f} (possibly because the walker blocked the site's own request to ${hit.slice(0, 2).join(', ')})`) : f));
+  // the form may only be held back by the walker's own safety block, so it cannot say "stuck"
+  if (flagged && res.outcome === 'stuck' && /is disabled/.test(res.stop || '')) {
+    res.outcome = 'unconfirmed';
+    res.stop = `${res.stop} The site checks the form with its own request to ${hit[0]}, which the walker blocks so that nothing is sent, so whether an agent could submit is unconfirmed.`;
+  }
+}
+
 const host = (u) => { try { const x = new URL(u); return x.host + (x.pathname === '/' ? '' : x.pathname); } catch { return u; } };
 
 async function settle(page) {
@@ -119,7 +141,7 @@ async function renderedCtas(page) {
 /** Visible error or validation text in a frame. */
 async function errorsIn(frame) {
   return frame.evaluate(() => [...document.querySelectorAll('[role=alert], [aria-live="assertive"], [class*="error" i], [class*="invalid" i]')]
-    .filter((e) => e.getClientRects().length && e.innerText && e.innerText.trim().length > 3 && e.innerText.trim().length < 140)
+    .filter((e) => e.getClientRects().length && !e.querySelector('input, select, textarea, button') && e.innerText && e.innerText.trim().length > 3 && e.innerText.trim().length < 140)
     .map((e) => e.innerText.trim().replace(/\s+/g, ' '))).catch(() => []);
 }
 
@@ -132,15 +154,25 @@ async function fillFrame(frame, res) {
   for (let i = 0; i < n; i++) {
     const el = fields.nth(i);
     const m = await el.evaluate((e, usable) => {
-      const lab = (e.labels && e.labels[0] && e.labels[0].innerText) || e.getAttribute('aria-label') || '';
+      // the label element, an aria-label, or for custom checkboxes the text wrapped around them
+      const near = e.closest('label') || (e.type === 'checkbox' || e.type === 'radio' ? e.parentElement && e.parentElement.parentElement : null);
+      const lab = (e.labels && e.labels[0] && e.labels[0].innerText) || e.getAttribute('aria-label') || (near && near.innerText.length < 200 ? near.innerText : '') || '';
       return {
         tag: e.tagName.toLowerCase(), type: (e.getAttribute('type') || '').toLowerCase(), name: e.name, id: e.id, placeholder: e.placeholder || '',
         autocomplete: e.getAttribute('autocomplete') || '', label: lab.trim(), value: e.value, checked: e.checked, required: e.required || e.getAttribute('aria-required') === 'true',
-        visible: (0, eval)(usable)(e), disabled: e.disabled || e.readOnly, role: e.getAttribute('role') || '', group: e.name,
+        visible: (0, eval)(usable)(e),
+        // custom checkboxes hide the input behind a styled box; the label is what a person clicks
+        proxy: !(0, eval)(usable)(e) && (
+          ((e.type === 'checkbox' || e.type === 'radio') && (0, eval)(usable)(e.closest('label') || e.parentElement))
+          || ((e.getAttribute('role') === 'combobox' || e.type === 'search') && !!e.parentElement && !!e.parentElement.parentElement && (0, eval)(usable)(e.parentElement.parentElement))),
+        // a custom select shows its placeholder while nothing is chosen
+        emptySelect: (() => { let n = e; for (let k = 0; k < 4 && n; k++, n = n.parentElement) { const ph = n.querySelector('[class*="placeholder" i]'); if (ph && ph.getClientRects().length) return true; } return false; })(),
+        disabled: e.disabled || (e.readOnly && e.getAttribute('role') !== 'combobox'), role: e.getAttribute('role') || '', group: e.name,
         selectedIndex: e.selectedIndex,
       };
     }, USABLE).catch(() => null);
-    if (!m || !m.visible || m.disabled || /^(hidden|submit|button|image|reset|file)$/.test(m.type)) continue;
+    if (!m || (!m.visible && !m.proxy) || m.disabled || /^(hidden|submit|button|image|reset|file)$/.test(m.type)) continue;
+    const tick = () => (m.proxy ? el.locator('xpath=ancestor::label[1] | ..').last().click({ timeout: 2000 }) : el.check({ force: true, timeout: 2000 }));
     try {
       if (m.tag === 'select') {
         if (m.selectedIndex > 0) continue;
@@ -148,20 +180,25 @@ async function fillFrame(frame, res) {
       }
       if (m.type === 'checkbox') {
         if (m.checked) continue;
-        if (m.required || (/agree|terms|conditions|privacy/i.test(m.label) && !/marketing|newsletter|offers|updates/i.test(m.label))) { await el.check({ force: true, timeout: 2000 }); filled++; }
+        if (m.required || (/agree|terms|conditions|privacy/i.test(m.label) && !/marketing|newsletter|offers|updates/i.test(m.label))) { await tick(); filled++; }
         continue;
       }
       if (m.type === 'radio') {
         if (radiosDone.has(m.group)) continue;
         radiosDone.add(m.group);
         const checked = await frame.locator(`input[type=radio][name="${m.group}"]:checked`).count().catch(() => 0);
-        if (!checked) { await el.check({ force: true, timeout: 2000 }); filled++; }
+        if (!checked) { await tick(); filled++; }
         continue;
       }
       if (m.value) continue;
       if (m.role === 'combobox' || m.type === 'search') {
-        await el.click({ timeout: 2000 });
-        const opt = frame.getByRole('option').filter({ visible: true }).first();
+        if (!m.emptySelect) continue;
+        // the typing input of a custom select is tiny; click it, or the control around it
+        if (m.proxy || await problemClicking(el)) await el.locator('xpath=../..').click({ timeout: 2000 });
+        else await el.click({ timeout: 2000 });
+        await frame.page().waitForTimeout(300);
+        let opt = frame.getByRole('option').filter({ visible: true }).first();
+        if (!(await opt.count())) opt = frame.locator('[class*="option" i]:not([class*="options" i])').filter({ visible: true }).first();
         if (await opt.count()) { await opt.click({ timeout: 2000 }); filled++; }
         else await frame.page().keyboard.press('Escape');
         continue;
@@ -329,7 +366,7 @@ export async function runBrowserJourneys(startUrl, { serverCtas = [], journeys =
     const ctx = await browser.newContext({ viewport: { width: 1280, height: 900 } });
     await ctx.route('**/*', (route) => {
       const r = route.request();
-      if (!SAFE_METHODS.has(r.method())) { blocked.push(`${r.method()} ${r.url()}`); return route.abort(); }
+      if (!SAFE_METHODS.has(r.method())) { blocked.push(r.url()); return route.abort(); }
       return route.continue();
     });
     const page = await ctx.newPage();
@@ -371,11 +408,36 @@ export async function runBrowserJourneys(startUrl, { serverCtas = [], journeys =
         await cta.click();
         const opened = await popup;
         if (!opened) await p.waitForURL((u) => u.href !== before, { timeout: 8000, waitUntil: 'commit' }).catch(() => {});
+        const mark = blocked.length;
         await walk(opened || p, res);
+        noteBlockedChecks(res, blocked.slice(mark));
         if (opened) await opened.close().catch(() => {});
       } catch (e) {
         res.outcome = 'broken';
         res.stop = `The browser failed: ${e.message.split('\n')[0]}`;
+      } finally {
+        await p.close().catch(() => {});
+      }
+    }
+
+    // answers that send people out of the form (e.g. a Typeform redirect ending): picking one would
+    // submit the form, so walk the destination directly
+    const exits = journeys.flatMap((j) => ((j.form && j.form.exits) || []).map((e) => ({ cta: j.name, provider: j.form.provider, ...e }))).slice(0, 2);
+    for (const e of exits) {
+      const answer = e.answers.join('" or "');
+      const res = { name: `${e.cta} → "${answer}"`, cta: e.cta, href: e.to, branch: true, outcome: null, stop: null, steps: [], friction: [], filled: 0, final: null, slot: null, captcha: false, trace: [] };
+      out.push(res);
+      const p = await ctx.newPage();
+      try {
+        log(`browser branch ${res.name}`);
+        await p.goto(e.to, { timeout: 30000 });
+        const mark = blocked.length;
+        await walk(p, res);
+        noteBlockedChecks(res, blocked.slice(mark));
+        if (res.steps[0]) res.steps[0].notes.unshift(`the ${e.provider} sends "${answer}" here; walked from this page`);
+      } catch (err) {
+        res.outcome = 'broken';
+        res.stop = `The browser failed: ${err.message.split('\n')[0]}`;
       } finally {
         await p.close().catch(() => {});
       }

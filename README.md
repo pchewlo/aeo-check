@@ -52,7 +52,7 @@ Passing file paths after the directory (`aeo-check . src/app/page.tsx`) checks t
 
 Each finding has a rule id, severity, location, the reason it matters for AI answers and a concrete fix. Pages get a score out of 100 (an error costs 12, a warning 4, an info 1, with each rule counted at most twice per page); the overall score is 60% the page average and 40% the site-level score.
 
-In URL mode the report also gives an **Agent score** out of 100: whether an assistant acting for a user can complete the start page's main calls to action. It sits next to the overall score rather than inside it, so one blocked call to action is not averaged away by fifty content rules. Each call to action scores 100 when the agent reaches a form or the final submit button, 90 when only the user can finish (card, OAuth, emailed link), 50 when it needs a browser, 25 for a dead end and 0 when broken; a browser walk that gets stuck scores 30, and each piece of friction costs 10. With `--browser`, the fetch-only result counts 40% and the browser result 60%. The call to action with the most links counts 60% of the score.
+In URL mode the report also gives an **Agent score** out of 100: whether an assistant acting for a user can complete the start page's main calls to action. It sits next to the overall score rather than inside it, so one blocked call to action is not averaged away by fifty content rules. Each call to action scores 100 when the agent reaches a form or the final submit button, 90 when only the user can finish (card, OAuth, emailed link), 50 when it needs a browser, 25 for a dead end and 0 when broken; a browser walk scores 70 when unconfirmed and 30 when it gets stuck, walks down a form's branches count towards their call to action, and each piece of friction costs 10. With `--browser`, the fetch-only result counts 40% and the browser result 60%. The call to action with the most links counts 60% of the score.
 
 ### Calls to action
 
@@ -82,7 +82,9 @@ It also notes when several choices (plans, rooms) share one URL, so the choice i
 
 Agents that drive a real browser (ChatGPT agent, Claude in Chrome) can use JavaScript forms, so `--browser` walks each distinct call-to-action destination on the rendered start page in headless Chromium, as such an agent would: it dismisses the cookie banner, fills fields with test data (an example.com email, never card details), answers choice questions, picks a booking slot and presses next, until it reaches the final submit button. It checks that button can be clicked and **never presses it**. Every request other than GET, HEAD and OPTIONS is aborted, so nothing is sent, booked or paid for, including autosave and analytics calls.
 
-The `cta-browser` rule reports a walk that gets stuck or fails (error), friction on the way, such as a button outside the visible area, a click that does nothing so the agent falls back to Enter or scrolling, or a validation message (warning), and calls to action that appear, or change their link, only after JavaScript runs (warning). JSON output carries each walk under `browser`.
+When a form sends some answers elsewhere (a Typeform answer that redirects to a separate sign-up app, say), picking that answer would submit the form, so the walker opens the destination directly and walks it as its own journey, named after the answer. Custom controls are handled the way a person uses them: hidden checkboxes through their label, styled dropdowns by opening them and picking the first option. Phone numbers are typed in international format.
+
+The `cta-browser` rule reports a walk that gets stuck or fails (error), a form whose final button stays disabled only after a validation request the walker blocked, so it cannot tell whether an agent could submit (warning, "unconfirmed"), friction on the way, such as a button outside the visible area, a click that does nothing so the agent falls back to Enter or scrolling, or a validation message (warning), and calls to action that appear, or change their link, only after JavaScript runs (warning). JSON output carries each walk under `browser`.
 
 ### Config
 
@@ -156,6 +158,7 @@ Routes are worked out from Next.js (app and pages routers, including `metadata` 
 |  | `agent-paths` | warn | Agents may reach product, booking and checkout paths |
 |  | `cta-browser` | error | (--browser) A browser agent can complete the main call to action up to the final submit |
 |  | `cta-journey` | error | An agent can follow the main call to action to a form, sign-in or payment (URL mode) |
+|  | `llms-txt-cta` | warn | llms.txt and the page's main call to action point to the same place (URL mode) |
 |  | `commerce-facts` | warn | Prices and key policies are plain text in the HTML |
 |  | `load-interstitials` | warn | No pop-ups or modals in front of the main content |
 |  | `offer-schema` | warn | Commerce pages declare Offer data an agent can read |

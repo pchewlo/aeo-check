@@ -1,7 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
-import { valueFor, clickProblem, diffCtas, runBrowserJourneys } from '../src/browser.js';
+import { valueFor, clickProblem, diffCtas, runBrowserJourneys, noteBlockedChecks } from '../src/browser.js';
 import { agentScore } from '../src/agent-score.js';
 import { RULES_BY_ID } from '../src/rules/index.js';
 
@@ -9,7 +9,7 @@ test('browser: test values by field type and label, and card fields stop the wal
   assert.equal(valueFor({ type: 'email' }).value, 'agent.test@example.com');
   assert.equal(valueFor({ type: 'text', label: 'First name' }).value, 'Agent');
   assert.equal(valueFor({ type: 'text', placeholder: 'Smith', label: 'Last name' }).value, 'Test');
-  assert.equal(valueFor({ type: 'tel' }).value, '07400 123456');
+  assert.equal(valueFor({ type: 'tel' }).value, '+44 7400 123456');
   assert.equal(valueFor({ type: 'text', label: 'Which clinic group are you with?' }).value, 'Example Ltd');
   assert.ok(valueFor({ type: 'text', autocomplete: 'cc-number' }).card);
   assert.ok(valueFor({ type: 'text', name: 'cvc' }).card);
@@ -69,6 +69,28 @@ test('agent score: fetch-only and browser results, primary CTA weighted 60%', ()
   assert.equal(agentScore({ pages: [], journeys: [] }), null);
 });
 
+test('browser: validation messages that may come from a blocked server check are marked', () => {
+  const res = { steps: [{ url: 'https://app.acme.test/join', notes: [] }], friction: ['validation messages showing: "An account already exists with this email"', 'a captcha is on the page'] };
+  noteBlockedChecks(res, ['https://api.acme.test/v1/check-email', 'https://www.google-analytics.com/g/collect']);
+  assert.equal(res.friction[0], 'validation messages showing: "An account already exists with this email" (possibly because the walker blocked the site\'s own request to api.acme.test)');
+  assert.equal(res.friction[1], 'a captcha is on the page');
+
+  const held = { steps: [{ url: 'https://app.acme.test/join', notes: [] }], outcome: 'stuck', stop: 'The "Create account" button is disabled.', friction: ['validation messages showing: "Email already registered"'] };
+  noteBlockedChecks(held, ['https://api.acme.test/v1/check-email']);
+  assert.equal(held.outcome, 'unconfirmed');
+  assert.match(held.stop, /checks the form with its own request to api\.acme\.test, which the walker blocks/);
+});
+
+test('agent score: a walk down a form branch counts towards its CTA', () => {
+  const site = { pages: [], journeys: [{ name: 'Request Demo', count: 2, outcome: 'needs-browser', steps: [] }], browser: { journeys: [
+    { name: 'Request Demo', outcome: 'reached', friction: [], steps: [] },
+    { name: 'Request Demo → "I\'m a clinician"', cta: 'Request Demo', branch: true, outcome: 'stuck', friction: [], steps: [] },
+  ] } };
+  const a = agentScore(site);
+  assert.equal(a.ctas.length, 1);
+  assert.equal(a.ctas[0].browser, 65);
+});
+
 let playwright = null;
 try { playwright = await import('playwright'); } catch {}
 
@@ -96,6 +118,36 @@ test('browser: walks a demo form to the submit button and sends nothing', { skip
     assert.equal(j.filled, 3, 'first name, email and the terms box; not the marketing box');
     assert.deepEqual(r.ctaDiff, []);
     assert.deepEqual(posts, [], 'nothing reaches the server');
+  } finally {
+    srv.close();
+  }
+});
+
+test('browser: walks a form branch that redirects out of the form, without submitting', { skip: !playwright && 'Playwright not installed' }, async () => {
+  const posts = [];
+  const pages = {
+    '/': '<!doctype html><html lang="en"><head><title>Acme</title></head><body><main><h1>Acme</h1><a href="/demo">Request Demo</a></main></body></html>',
+    '/demo': '<!doctype html><html lang="en"><head><title>Demo</title></head><body><main><h1>Demo</h1><p>Loading form</p></main></body></html>',
+    '/join': `<!doctype html><html lang="en"><head><title>Join</title></head><body><main><h1>Create your account</h1><form method="post" action="/accounts">
+      <input placeholder="First Name"><input type="email" placeholder="Email Address"><input type="password" placeholder="Password">
+      <label><input type="checkbox" required> I agree to the Terms</label><button type="submit">Create Free Account</button></form></main></body></html>`,
+  };
+  const srv = createServer((req, res) => {
+    if (req.method !== 'GET') { posts.push(req.url); res.end('ok'); return; }
+    res.setHeader('content-type', 'text/html');
+    res.end(pages[req.url] || 'not found');
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const journeys = [{ name: 'Request Demo', outcome: 'needs-browser', steps: [], form: { provider: 'Typeform', url: 'https://form.typeform.com/to/x', exits: [{ answers: ["I'm a clinician"], to: `${base}/join` }] } }];
+    const r = await runBrowserJourneys(`${base}/`, { serverCtas: [{ name: 'Request Demo', href: `${base}/demo` }], journeys, playwright });
+    const branch = r.journeys.find((j) => j.branch);
+    assert.equal(branch.name, 'Request Demo → "I\'m a clinician"');
+    assert.equal(branch.outcome, 'reached');
+    assert.equal(branch.final, 'Create Free Account');
+    assert.match(branch.steps[0].notes[0], /the Typeform sends "I'm a clinician" here/);
+    assert.deepEqual(posts, []);
   } finally {
     srv.close();
   }
