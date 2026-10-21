@@ -1,0 +1,6 @@
+# For the pre-commit framework (https://pre-commit.com): copy into .pre-commit-config.yaml
+repos:
+  - repo: https://github.com/pchewlo/aeo-check
+    rev: main
+    hooks:
+      - id: aeo-check

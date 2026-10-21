@@ -1,0 +1,14 @@
+#!/bin/sh
+# Plain git hook: save as .git/hooks/pre-commit and make it executable,
+# or call it from husky (.husky/pre-commit).
+# Checks the whole site for context but only reports the staged files.
+
+files=$(git diff --cached --name-only --diff-filter=ACMR | grep -E '\.(html?|jsx|tsx|vue|svelte|astro|mdx?)$|(^|/)(robots|llms)\.txt$|sitemap[^/]*\.xml$')
+[ -z "$files" ] && exit 0
+
+# Uses a local install (npm i -D github:pchewlo/aeo-check) if there is one.
+if [ -x node_modules/.bin/aeo-check ]; then
+  node_modules/.bin/aeo-check $files --quiet
+else
+  npx --yes github:pchewlo/aeo-check $files --quiet
+fi

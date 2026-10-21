@@ -1,0 +1,7 @@
+- id: aeo-check
+  name: aeo-check
+  description: Check staged web files for answer engine optimisation (AEO) problems.
+  entry: aeo-check --quiet
+  language: node
+  files: \.(html?|jsx|tsx|vue|svelte|astro|mdx?)$|(^|/)(robots|llms)\.txt$|sitemap[^/]*\.xml$
+  pass_filenames: true
