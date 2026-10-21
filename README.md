@@ -148,7 +148,7 @@ jobs:
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v4
-      - uses: pchewlo/aeo-check@main
+      - uses: pchewlo/aeo-check@v0
         with:
           path: .
           fail-on: error
@@ -165,7 +165,7 @@ With [pre-commit](https://pre-commit.com), add to `.pre-commit-config.yaml`:
 ```yaml
 repos:
   - repo: https://github.com/pchewlo/aeo-check
-    rev: main
+    rev: v0.1.0
     hooks:
       - id: aeo-check
 ```

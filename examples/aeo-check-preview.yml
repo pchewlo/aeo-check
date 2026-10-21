@@ -12,7 +12,7 @@ jobs:
     if: github.event.deployment_status.state == 'success'
     runs-on: ubuntu-latest
     steps:
-      - uses: pchewlo/aeo-check@main
+      - uses: pchewlo/aeo-check@v0
         with:
           url: ${{ github.event.deployment_status.environment_url }}
           args: --max-pages 20
