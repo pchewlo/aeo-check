@@ -6,6 +6,7 @@ import { parseRobots, parseSitemap, parseLlmsTxt } from './parse/sitefiles.js';
 import { analyseMarkup } from './analyse.js';
 import { finalisePage, isInternalHref } from './site.js';
 import { CTA_TEXT, COMMERCE_ROUTE } from './rules/_util.js';
+import { runJourneys } from './journey.js';
 
 export const VERSION_UA = 'Mozilla/5.0 (compatible; aeo-check/0.1; +https://github.com/pchewlo/aeo-check)';
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
@@ -140,6 +141,14 @@ export async function buildUrlSite(start, { maxPages = 1, probe = true, fetchImp
       if (browser.status >= 400 || browser.status === 0) continue;
       site.commerceProbes.push({ url, browser: browser.status, blocked: rest.filter((r) => r.status >= 400 || r.challenge) });
     }
+
+    // follow the start page's calls to action as an agent acting for a user would
+    const agentUa = PROBES.find((p) => p.token === 'ChatGPT-User').ua;
+    site.journeys = await runJourneys(site.pages[0], async (u) => {
+      const r = await get(u, { ua: agentUa, fetchImpl });
+      const isPage = r.status > 0 && r.status < 400 && /<html|<body|<!doctype/i.test(r.text.slice(0, 2000));
+      return { status: r.status, url: r.url, html: r.text, error: r.error, challenge: isChallenge(r), page: isPage ? pageFromHtml(r.text, r.url || u, r.headers) : null };
+    }, { log });
   }
   return site;
 }
