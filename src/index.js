@@ -6,6 +6,8 @@ import { buildUrlSite } from './url.js';
 import { runRules, summarise } from './engine.js';
 import { runAI } from './ai.js';
 import { loadConfig } from './config.js';
+import { runBrowserJourneys } from './browser.js';
+import { CTA_TEXT } from './rules/_util.js';
 
 export const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
 export { RULES, RULES_BY_ID } from './rules/index.js';
@@ -14,7 +16,7 @@ export { runRules, summarise } from './engine.js';
 
 /**
  * Check a repository directory, an in-memory file list, or a live URL.
- * options: { root, files, url, config, onlyFiles, ai, aiModel, aiMaxPages, maxPages, probe, client, log }
+ * options: { root, files, url, config, onlyFiles, ai, aiModel, aiMaxPages, maxPages, probe, browser, playwright, client, log }
  */
 export async function check(options = {}) {
   const log = options.log || (() => {});
@@ -29,7 +31,14 @@ export async function check(options = {}) {
       const e = site.fetchError || {};
       throw new Error(`Could not fetch ${options.url}${e.status ? ` (HTTP ${e.status})` : e.error ? ` (${e.error})` : ''}.`);
     }
+    if (options.browser) {
+      const start = site.pages[0];
+      const serverCtas = (start.controls || []).filter((c) => c.kind === 'link' && c.name && c.name.name && CTA_TEXT.test(c.name.name.trim()))
+        .map((c) => { let href = null; try { href = c.href ? new URL(c.href, start.file).href : null; } catch {} return { name: c.name.name.trim(), href }; });
+      site.browser = await runBrowserJourneys(start.file, { serverCtas, journeys: site.journeys || [], log, playwright: options.playwright });
+    }
   } else {
+    if (options.browser) throw new Error('--browser needs a URL to check.');
     const root = options.root || '.';
     config = config || loadConfig(root);
     target = root;
