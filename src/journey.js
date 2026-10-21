@@ -3,6 +3,7 @@
 // something only the user can finish, or a dead end.
 import { parseMarkup, attr, ancestors } from './parse/markup.js';
 import { CTA_TEXT, TEMPLATE_TOKEN, TEMPLATE_TOKENS, words } from './rules/_util.js';
+import { typeformDefinition, summariseTypeform } from './typeform.js';
 
 export const MAX_STEPS = 4;
 const MAX_JOURNEYS = 3;
@@ -178,7 +179,17 @@ export async function runJourneys(start, fetchPage, { log = () => {} } = {}) {
       const info = readStep(r.html, r.page);
       step.notes.push(...describe(info));
       const a = assess(info, r.url || url);
-      if (a) { step.notes.unshift(a.note); j.outcome = a.outcome; j.stop = a.stop; break; }
+      if (a) {
+        step.notes.unshift(a.note); j.outcome = a.outcome; j.stop = a.stop;
+        // the agent can't run the embed, but its public definition says what is behind it
+        if (info.embed && info.embed.name === 'Typeform form' && info.embed.id) {
+          const tfUrl = `https://form.typeform.com/to/${info.embed.id}`;
+          const t = await fetchPage(tfUrl);
+          const form = t.status === 200 && t.html ? typeformDefinition(t.html, info.embed.id) : null;
+          if (form) { const sum = summariseTypeform(form); j.form = { provider: 'Typeform', url: tfUrl, ...sum }; step.notes.push(`Typeform: ${sum.notes.join('; ')}`); }
+        }
+        break;
+      }
       const next = nextLink(r.page, goal, visited);
       if (!next) { j.outcome = 'dead-end'; j.stop = 'No form and no next link (sign up, book, checkout) on this page.'; break; }
       step.notes.push(`next: "${next.name}"`);

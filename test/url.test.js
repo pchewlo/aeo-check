@@ -2,6 +2,7 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { check } from '../src/index.js';
 import { CTA_TEXT } from '../src/rules/_util.js';
+import { readFileSync } from 'node:fs';
 
 const SHELL = '<!doctype html><html lang="en"><head><title>Acme</title><meta name="description" content="Acme analytics for product teams and their retention reports."></head><body><div id="root"></div><script src="/assets/index.js"></script></body></html>';
 
@@ -156,10 +157,11 @@ test('url mode: a demo page whose form is a JavaScript Typeform embed needs a br
   const nav = '<nav><a href="/">Home</a><a href="/request-demo">Request Demo</a></nav>';
   const words = 'Acme helps clinic groups launch specialist care with clinical support, software and training for every site. '.repeat(3);
   const flight = '<script>self.__next_f.push([1,"8f:[\\"$\\",\\"$L91\\",null,{\\"blockType\\":\\"typeformEmbed\\",\\"typeformId\\":\\"Xy7Kq2Lm\\"}]"])</script>';
-  const fetchImpl = fakeFetch({
+  const routes = {
     'https://acme.test/': { body: doc(`${nav}<h1>Acme</h1><p>${words}</p><a href="/request-demo">Request Demo</a>`) },
     'https://acme.test/request-demo': { body: doc(`${nav}<h1>Request a demo</h1><p>${words}</p><div id="tf"></div>`, flight) },
-  });
+  };
+  const fetchImpl = fakeFetch(routes);
   const r = await check({ url: 'https://acme.test/', fetchImpl });
   const [demo] = r.site.journeys;
   assert.equal(demo.name, 'Request Demo');
@@ -167,4 +169,14 @@ test('url mode: a demo page whose form is a JavaScript Typeform embed needs a br
   assert.equal(demo.outcome, 'needs-browser');
   assert.match(demo.steps[0].notes[0], /Typeform form \(Xy7Kq2Lm\) loaded by JavaScript/);
   assert.equal(r.findings.find((x) => x.ruleId === 'cta-journey').severity, 'warn');
+  assert.equal(r.site.journeys[0].form, undefined, 'no share page, no summary');
+
+  // with the share page reachable, the journey reports what the form asks and where it sends people
+  const share = readFileSync(new URL('./fixtures/typeform-share-page.html', import.meta.url), 'utf8');
+  const r2 = await check({ url: 'https://acme.test/', fetchImpl: fakeFetch({ ...routes, 'https://form.typeform.com/to/Xy7Kq2Lm': { body: share } }) });
+  const form = r2.site.journeys[0].form;
+  assert.equal(form.required, 1);
+  assert.deepEqual(form.exits, [{ answers: ["I'm a clinician"], to: 'https://partners.acme.test/join' }]);
+  assert.equal(form.scheduler, false);
+  assert.match(r2.findings.find((x) => x.ruleId === 'cta-journey').message, /"I'm a clinician" redirects to partners\.acme\.test\/join; no booking step/);
 });

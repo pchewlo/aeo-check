@@ -27,7 +27,7 @@ export default {
       const lost = shared ? ` On ${host(shared.finalUrl || shared.url)}, ${shared.shared.count} "${shared.shared.name}" buttons share one URL, so the choice (such as the plan) is not carried through.` : '';
       out.push({
         file: start.file, line: j.line, severity: sev,
-        message: `"${j.name}"${j.count > 1 ? ` (${j.count} links)` : ''} to ${goalLabel(j.goal)}: ${path}${where}. ${j.stop}${lost}`,
+        message: `"${j.name}"${j.count > 1 ? ` (${j.count} links)` : ''} to ${goalLabel(j.goal)}: ${path}${where}. ${j.stop}${lost}${j.form ? ` The ${j.form.provider} behind it has ${j.form.notes.join('; ')}.` : ''}`,
       });
     }
     return out;
