@@ -63,9 +63,10 @@ export function cap(findings, max, note) {
   return kept;
 }
 
-export const CTA_TEXT = /^(book( now| direct| a room| online| your (stay|room|table))?|reserve( now)?|buy( now| online)?|add to (basket|cart|bag|trolley)|checkout|check ?out|order( now| online)?|purchase|pay( now)?|get tickets|buy tickets|subscribe( now)?|start (my |your )?free trial|get started|sign up|request a quote)\b/i;
+export const CTA_TEXT = /^(book( now| direct| a room| online| your (stay|room|table))?|reserve( now)?|buy( now| online)?|add to (basket|cart|bag|trolley)|checkout|check ?out|order( now| online)?|purchase|pay( now)?|get tickets|buy tickets|subscribe( now)?|start (my |your )?free trial|get started|sign up|request a quote)\b(?!\s+(notes?|clubs?|reviews?|lists?|shelf|summar(y|ies)|of|history|recommendations?)\b)/i;
 export const CTA_HINT = /(^|[\s_-])(cta|book(ing)?[-_]?(now|btn|button)?|buy[-_]?(now|btn|button)|add[-_]?to[-_]?(cart|basket|bag)|checkout|reserve)([\s_-]|$)/i;
 export const COMMERCE_ROUTE = /(^|\/)(pricing|plans|products?|shop|store|book|booking|bookings|reserve|reservations?|rooms?|suites?|tickets?|checkout|cart|basket|order|buy)(\/|$)/i;
+export const BOOKING_ROUTE = /(^|\/)(book|booking|bookings|reserve|reservations?|rooms?|suites?|tickets?)(\/|$)/i;
 export const COMMERCE_TYPES = /^(Product|ProductGroup|Offer|AggregateOffer|Hotel|LodgingBusiness|HotelRoom|Suite|Room|Restaurant|Event|SoftwareApplication|Service|Trip|Reservation)$/;
 
 /** Primary calls to action on a page or component. */

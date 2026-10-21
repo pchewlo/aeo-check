@@ -59,3 +59,15 @@ test('load-interstitials: visible modals before the heading', () => {
   const script = findings('load-interstitials', hotel('<h1>Deluxe</h1>', { head: '<script src="https://a.omappapi.com/app/js/api.min.js"></script>' }));
   assert.equal(script[0].severity, 'info');
 });
+
+test('commerce-facts and offer-schema: a "Book Notes" nav link is not a Book button', () => {
+  const nav = '<nav><a href="/">Home</a><a href="/book-notes">Book Notes</a></nav>';
+  const files = {
+    'index.html': html({ body: `${nav}<h1>Tom's notes</h1><p>${para(200)}</p>` }),
+    'book-notes/gates-of-fire.html': html({ canonical: 'https://acme.test/book-notes/gates-of-fire', body: `${nav}<h1>Gates of Fire</h1><p>${para(200)}</p>` }),
+  };
+  assert.deepEqual(findings('commerce-facts', files), []);
+  assert.deepEqual(findings('offer-schema', files), []);
+  const buy = findings('commerce-facts', { 'index.html': html({ body: `<h1>Acme</h1><p>${para(200)}</p><a href="/checkout">Buy now</a>` }) });
+  assert.equal(buy.length, 1);
+});

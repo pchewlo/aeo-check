@@ -1,4 +1,4 @@
-import { isIndexable } from './_util.js';
+import { isIndexable, BOOKING_ROUTE } from './_util.js';
 import { isCommercePage } from './commerce-facts.js';
 import { jsonLdTypes } from '../site.js';
 
@@ -31,7 +31,7 @@ export default {
     const offers = (page.jsonLd || []).flatMap((j) => (j.data ? offersOf(j.data) : []));
     const dynamicOffers = (page.jsonLd || []).some((j) => j.dynamic && (j.keys || []).includes('offers'));
     if (!offers.length && !dynamicOffers) {
-      const lodging = /room|suite|book|reserv/i.test(page.route);
+      const lodging = BOOKING_ROUTE.test(page.route);
       out.push({ line: 1, message: `No Offer in the structured data${types.length ? ` (found ${[...new Set(types)].join(', ')})` : ''}. Add ${lodging ? 'Hotel/LodgingBusiness or Product' : 'Product'} JSON-LD with offers.` });
       return out;
     }

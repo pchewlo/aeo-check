@@ -54,3 +54,32 @@ test('url mode: booking links that block agents acting for a user (agent-paths)'
   assert.ok(f, 'expected agent-paths finding');
   assert.match(f.message, /engine\.test\/hotel\/42 returns 200 to a browser but blocks ChatGPT-User \(403\), Claude-User \(403\), Perplexity-User \(403\)/);
 });
+
+test('url mode: a start URL without a trailing slash is not crawled twice', async () => {
+  const page = (title, links) => `<!doctype html><html lang="en"><head><title>${title}</title></head><body><main><h1>${title}</h1>${links.map((l) => `<a href="${l}">${l}</a>`).join('')}</main></body></html>`;
+  const fetchImpl = fakeFetch({
+    'https://acme.test/': { body: page('Home of Acme analytics', ['/', '/a']) },
+    'https://acme.test/a': { body: page('Acme page A', ['/']) },
+  });
+  const r = await check({ url: 'https://acme.test', maxPages: 5, probe: false, fetchImpl });
+  assert.deepEqual(r.site.pages.map((p) => p.route), ['/', '/a']);
+  assert.ok(!r.findings.some((f) => f.ruleId === 'duplicate-title'));
+});
+
+test('url mode: a link that redirects to a page already crawled is not crawled twice', async () => {
+  const page = (title, links) => `<!doctype html><html lang="en"><head><title>${title}</title></head><body><main><h1>${title}</h1>${links.map((l) => `<a href="${l}">${l}</a>`).join('')}</main></body></html>`;
+  const routes = {
+    'https://acme.test/uk': page('Acme in the UK', ['/uk/', '/uk/about']),
+    'https://acme.test/uk/about': page('About Acme UK', ['/uk/']),
+  };
+  const fetchImpl = async (url) => {
+    const final = url.replace(/(.)\/$/, '$1');
+    if (!routes[final]) return new Response('not found', { status: 404 });
+    const res = new Response(routes[final], { headers: { 'content-type': 'text/html' } });
+    Object.defineProperty(res, 'url', { value: final });
+    return res;
+  };
+  const r = await check({ url: 'https://acme.test/uk', maxPages: 5, probe: false, fetchImpl });
+  assert.deepEqual(r.site.pages.map((p) => p.route), ['/uk', '/uk/about']);
+  assert.ok(!r.findings.some((f) => f.ruleId === 'duplicate-title'));
+});
