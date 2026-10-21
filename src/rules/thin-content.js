@@ -1,0 +1,19 @@
+import { isIndexable, hasFullText } from './_util.js';
+
+export default {
+  id: 'thin-content',
+  severity: 'warn',
+  scope: 'page',
+  category: 'content',
+  title: 'Pages have enough substance to cite',
+  rationale: 'Thin pages rarely get indexed or cited, and they dilute the site. One team deleted 200 thin AI-written posts and tripled Google traffic; Google\'s helpful-content guidance makes the same point.',
+  sources: ['x-lotti', 'x-daniel', 'google-helpful'],
+  fix: 'Expand the page with specific answers, data and examples, merge it into a stronger page, or delete it and redirect.',
+  check(page) {
+    if (!isIndexable(page) || !hasFullText(page) || page.metaRefresh) return [];
+    const min = page.isArticle ? 300 : 150;
+    if (page.wordCount >= min) return [];
+    if (page.kind === 'html' && page.emptyRoots.length) return []; // reported by client-only-content
+    return [{ line: 1, message: `${page.wordCount} words of main content (${page.isArticle ? 'articles' : 'pages'} under ${min} words are rarely cited).` }];
+  },
+};
