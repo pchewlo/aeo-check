@@ -14,6 +14,8 @@ export const SOURCES = {
   'x-cody-claude': { label: '@codyschneider: Claude Code for SEO: schema, internal linking maps, content refresh', url: 'https://x.com/codyschneider/status/2028500579501183024' },
   'x-ericciarla': { label: '@ericciarla: llms.txt generator', url: 'https://x.com/ericciarla/status/1899490834862809139' },
   'x-roundtable': { label: '@RoundtableSpace: agent skills list, including claude-seo', url: 'https://x.com/RoundtableSpace/status/2092609257338200469' },
+  // Agent readiness
+  'larne-agents': { label: 'Larne, "Agents don\'t read your brand book", Getting CEOs to trust CMOs (Oct 2026): four AI assistants asked to book a hotel night direct, one succeeded', url: 'https://gettingceostotrustcmos.substack.com' },
   // Vendor docs
   'openai-bots': { label: 'OpenAI: Overview of OpenAI crawlers (OAI-SearchBot, GPTBot, ChatGPT-User)', url: 'https://developers.openai.com/api/docs/bots' },
   'anthropic-bots': { label: 'Anthropic: ClaudeBot, Claude-User and Claude-SearchBot', url: 'https://support.claude.com/en/articles/8896518-does-anthropic-crawl-data-from-the-web-and-how-can-site-owners-block-the-crawler' },
@@ -42,6 +44,10 @@ export const SOURCES = {
   'llmstxt': { label: 'llms.txt specification', url: 'https://llmstxt.org/' },
   'vercel-ai-crawlers': { label: 'Vercel: The rise of the AI crawler (Dec 2024): none of the major AI crawlers render JavaScript', url: 'https://vercel.com/blog/the-rise-of-the-ai-crawler' },
   'cloudflare-ai-block': { label: 'Cloudflare: AI crawlers blocked by default for new domains (Jul 2025)', url: 'https://blog.cloudflare.com/content-independence-day-no-ai-crawl-without-compensation/' },
+  'w3c-names': { label: 'W3C ARIA Authoring Practices: providing accessible names', url: 'https://www.w3.org/WAI/ARIA/apg/practices/names-and-descriptions/' },
+  'google-merchant': { label: 'Google: merchant listing (Product, Offer) structured data', url: 'https://developers.google.com/search/docs/appearance/structured-data/merchant-listing' },
+  'schema-offer': { label: 'schema.org Offer', url: 'https://schema.org/Offer' },
+  'google-interstitials': { label: 'Google: avoid intrusive interstitials and dialogs', url: 'https://developers.google.com/search/docs/appearance/avoid-intrusive-interstitials' },
   'ogp': { label: 'The Open Graph protocol', url: 'https://ogp.me/' },
   'w3c-lang': { label: 'W3C: declaring language in HTML', url: 'https://www.w3.org/International/questions/qa-html-language-declarations' },
 };
