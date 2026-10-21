@@ -156,6 +156,7 @@ Routes are worked out from Next.js (app and pages routers, including `metadata` 
 |  | `agent-paths` | warn | Agents may reach product, booking and checkout paths |
 |  | `cta-browser` | error | (--browser) A browser agent can complete the main call to action up to the final submit |
 |  | `cta-journey` | error | An agent can follow the main call to action to a form, sign-in or payment (URL mode) |
+|  | `llms-txt-cta` | warn | llms.txt and the page's main call to action point to the same place (URL mode) |
 |  | `commerce-facts` | warn | Prices and key policies are plain text in the HTML |
 |  | `load-interstitials` | warn | No pop-ups or modals in front of the main content |
 |  | `offer-schema` | warn | Commerce pages declare Offer data an agent can read |
