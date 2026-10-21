@@ -83,3 +83,14 @@ test('url mode: a link that redirects to a page already crawled is not crawled t
   assert.deepEqual(r.site.pages.map((p) => p.route), ['/uk', '/uk/about']);
   assert.ok(!r.findings.some((f) => f.ruleId === 'duplicate-title'));
 });
+
+test('url mode: unrendered template placeholders in CTAs, links and text', async () => {
+  const home = '<!doctype html><html lang="en"><head><title>Acme growth plans for makers</title></head><body><main><h1>Acme</h1><p>From {{ planPrice }} a month.</p><a href="{{ demoUrl }}">Book a demo</a><a href="{{ demoUrl }}">Book a demo</a><a href="{{ docsUrl }}">Read the docs</a><a href="/signup">Sign up</a></main></body></html>';
+  const r = await check({ url: 'https://acme.test/', probe: false, fetchImpl: fakeFetch({ 'https://acme.test/': { body: home } }) });
+  const cta = r.findings.filter((f) => f.ruleId === 'primary-cta');
+  assert.equal(cta.length, 1);
+  assert.match(cta[0].message, /"Book a demo" links to the unrendered template "\{\{ demoUrl \}\}" \(2 links\)/);
+  const tp = r.findings.filter((f) => f.ruleId === 'template-placeholders');
+  assert.equal(tp.length, 2, 'docs link and the price text, not the CTA again');
+  assert.match(tp.map((f) => f.message).join('\n'), /Read the docs.*\{\{ docsUrl \}\}[\s\S]*\{\{ planPrice \}\}/);
+});

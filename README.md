@@ -124,6 +124,7 @@ Routes are worked out from Next.js (app and pages routers, including `metadata` 
 |  | `load-interstitials` | warn | No pop-ups or modals in front of the main content |
 |  | `offer-schema` | warn | Commerce pages declare Offer data an agent can read |
 |  | `primary-cta` | error | Book, Buy and Checkout are real links or buttons with text |
+|  | `template-placeholders` | error | No unrendered `{{ }}` placeholders in links or text (URL mode) |
 
 The four `--ai` rules send each content page's text (up to 10 pages, longest first) to Claude and need `ANTHROPIC_API_KEY`. They use `claude-opus-5` by default; change it with `--ai-model`. They are off unless you pass `--ai`.
 
