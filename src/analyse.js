@@ -144,7 +144,8 @@ function collectBlocks(node, model, ctx) {
 function analyseElements(doc, model) {
   for (const el of doc.elements) {
     const anc = ancestors(el);
-    if (anc.some((a) => a.tag === 'svg' || a.tag === 'head')) continue;
+    if (anc.some((a) => a.tag === 'svg')) continue;
+    if (anc.some((a) => a.tag === 'head') && el.tag !== 'script') continue;
     const inChrome = anc.some((a) => CHROME.has(a.tag));
     if (el.tag === 'main' || el.tag === 'article' || hasAttr(el, 'role') && attr(el, 'role') === 'main') model.hasMain = true;
     if (el.tag === 'img' || IMAGE_COMPONENTS.has(el.name)) {
