@@ -30,3 +30,9 @@ test('every rule is well formed and cites known sources', () => {
   }
   assert.ok(RULES.length >= 25);
 });
+
+test('README lists every rule', () => {
+  const readme = readFileSync(new URL('../README.md', import.meta.url), 'utf8');
+  const missing = RULES.filter((r) => !readme.includes('`' + r.id + '`'));
+  assert.deepEqual(missing.map((r) => r.id), []);
+});
