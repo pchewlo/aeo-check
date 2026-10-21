@@ -6,7 +6,7 @@ export default {
   scope: 'page',
   category: 'metadata',
   title: 'Every page has a meta description',
-  rationale: 'The meta description travels with each retrieved result in ChatGPT\'s pipeline and is the default snippet in Google. It should state what the page answers, in words that match the content.',
+  rationale: 'The meta description travels with each retrieved result in ChatGPT\'s pipeline and Google often uses it as the snippet. It should state what the page answers, in words that match the content.',
   sources: ['x-jingg', 'x-suraj', 'google-snippet'],
   fix: 'Write a 70-160 character description that answers "what will I learn or get here?" for this specific page.',
   check(page) {

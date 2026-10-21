@@ -4,7 +4,7 @@ export default {
   scope: 'site',
   category: 'crawl',
   title: 'Important pages are indexable',
-  rationale: 'AI Overviews and AI Mode only cite pages that are indexed and eligible for a snippet, and ChatGPT and Copilot lean on the Bing index. A noindex in a meta tag, metadata export or X-Robots-Tag header takes the page out of all of them.',
+  rationale: 'AI Overviews and AI Mode only cite pages that are indexed and eligible for a snippet, and Bing, whose index Copilot answers from, drops noindex pages too. A noindex in a meta tag, metadata export or X-Robots-Tag header takes the page out of all of them.',
   sources: ['x-suraj', 'google-ai-features', 'google-robots-meta', 'google-js-seo'],
   fix: 'Remove noindex from pages you want cited. Keep it only on login, account, admin, preview and thank-you pages.',
   check(site) {

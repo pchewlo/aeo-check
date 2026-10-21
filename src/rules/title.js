@@ -6,7 +6,7 @@ export default {
   scope: 'page',
   category: 'metadata',
   title: 'Every page has a specific <title>',
-  rationale: 'ChatGPT keeps each result\'s title and meta tags alongside the text it retrieves, and Google uses the title as the link text. A missing or generic title leaves the answer engine guessing what the page is about.',
+  rationale: 'ChatGPT keeps each result\'s title and meta tags alongside the text it retrieves, and it is the main source of Google\'s title link. A missing or generic title leaves the answer engine guessing what the page is about.',
   sources: ['x-jingg', 'x-suraj', 'google-title'],
   fix: 'Give each page a title of roughly 15-65 characters that names the subject, e.g. "Pricing for Acme analytics: plans and limits". In Next.js set metadata.title; elsewhere use <title>.',
   check(page) {

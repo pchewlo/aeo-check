@@ -12,7 +12,7 @@ export default {
   scope: 'page',
   category: 'schema',
   title: 'Key pages carry schema.org JSON-LD',
-  rationale: 'JSON-LD states facts (who publishes the site, what the product costs, when an article was updated) in a form crawlers parse without guessing. It is on every vibe-coder SEO checklist, and Claude Code SEO workflows generate it by default.',
+  rationale: 'JSON-LD states facts (who publishes the site, what the product costs, when an article was updated) in a form crawlers parse without guessing. Schema markup is on the SEO checklist for vibe-coded sites, and Claude Code SEO workflows bake it into generated pages.',
   sources: ['x-suraj', 'x-cody-claude', 'schema-org', 'google-org', 'google-article'],
   fix: 'Add a <script type="application/ld+json"> block: Organization and WebSite on the home page, Article/BlogPosting on posts, Product or SoftwareApplication on product and pricing pages. Keep it consistent with the visible content.',
   check(page) {
