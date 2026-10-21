@@ -10,5 +10,5 @@ const mods = await Promise.all(files.map((f) => import(`./${f}`)));
 export const RULES = mods.map((m) => m.default).filter(Boolean);
 export const RULES_BY_ID = Object.fromEntries(RULES.map((r) => [r.id, r]));
 
-const ORDER = ['crawl', 'metadata', 'structure', 'content', 'trust', 'schema', 'links', 'media'];
+const ORDER = ['crawl', 'metadata', 'structure', 'content', 'trust', 'schema', 'links', 'media', 'agents'];
 RULES.sort((a, b) => ORDER.indexOf(a.category) - ORDER.indexOf(b.category) || (a.ai ? 1 : 0) - (b.ai ? 1 : 0) || a.id.localeCompare(b.id));
