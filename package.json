@@ -1,0 +1,22 @@
+{
+  "name": "aeo-check",
+  "version": "0.1.0",
+  "description": "Check a website's code for answer engine optimisation: whether ChatGPT, Claude, Perplexity, Gemini and Google AI Overviews can crawl, understand and cite it.",
+  "type": "module",
+  "bin": { "aeo-check": "bin/aeo-check.js" },
+  "main": "src/index.js",
+  "exports": { ".": "./src/index.js" },
+  "files": ["bin", "src", "action.yml", "README.md", "LICENSE"],
+  "engines": { "node": ">=18" },
+  "scripts": {
+    "test": "node --test test/",
+    "check": "node bin/aeo-check.js"
+  },
+  "optionalDependencies": {
+    "@anthropic-ai/sdk": "^0.137.0"
+  },
+  "keywords": ["aeo", "geo", "seo", "llms.txt", "ai-search", "chatgpt", "claude", "perplexity", "lint", "github-action"],
+  "repository": { "type": "git", "url": "git+https://github.com/pchewlo/aeo-check.git" },
+  "homepage": "https://github.com/pchewlo/aeo-check",
+  "license": "MIT"
+}
