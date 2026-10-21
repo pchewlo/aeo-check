@@ -10,10 +10,11 @@ export const TEST_DATA = {
 
 const SAFE_METHODS = new Set(['GET', 'HEAD', 'OPTIONS']);
 const NEXT = /^(ok|next( step| question)?|continue|begin|start|proceed|let'?s go|go)\s*[→›>»]?$/i;
-const FINAL = /^(submit|send|confirm|request|book|schedule|reserve|create\b.*\baccount|sign ?up|register|join|complete|finish|place order|pay|subscribe|start (my |your |a )?(free )?trial|get started|apply)\b/i;
+const FINAL = /^(submit|send|email me|confirm|request|book|schedule|reserve|create\b.*\baccount|sign ?up|register|join|complete|finish|place order|pay|subscribe|start (my |your |a )?(free )?trial|get started|apply)\b/i;
 const COOKIE_BUTTONS = ['Reject all', 'Deny', 'Decline', 'Only necessary', 'Necessary only', 'Reject', 'Accept all', 'Accept', 'Allow all', 'I agree', 'Got it'];
 const CAPTCHA_FRAME = /recaptcha|hcaptcha|challenges\.cloudflare\.com|turnstile|arkoselabs|funcaptcha/;
-const PAY_FRAME = /js\.stripe\.com|checkout\.stripe\.com|braintreegateway|adyen\.com|paypal\.com\/sdk|squareup|checkout\.com/;
+// card fields, not the invisible fraud-detection frames payment providers load on every page
+const PAY_FRAME = /js\.stripe\.com\/v3\/elements-inner|checkout\.stripe\.com|braintreegateway\.com|checkoutshopper[^/]*\.adyen\.com|paypal\.com\/sdk|squareup|checkout\.com/;
 const MAX_STEPS = 12;
 
 export async function loadPlaywright() {
@@ -242,8 +243,10 @@ async function findButton(frames, re, { exclude, linksToo = false } = {}) {
     const n = await cands.count().catch(() => 0);
     for (let i = 0; i < n; i++) {
       const b = cands.nth(i);
-      const info = await b.evaluate((e, usable) => ({ name: (e.innerText || e.value || e.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' '), visible: (0, eval)(usable)(e), link: e.tagName === 'A' }), USABLE).catch(() => null);
-      if (!info || !info.visible || !info.name || !re.test(info.name) || (exclude && exclude.test(info.name))) continue;
+      const info = await b.evaluate((e, usable) => ({ name: (e.innerText || e.value || e.getAttribute('aria-label') || '').trim().replace(/\s+/g, ' '), aria: (e.getAttribute('aria-label') || '').trim(), visible: (0, eval)(usable)(e), link: e.tagName === 'A' }), USABLE).catch(() => null);
+      // calendars often show "22" and keep "Wednesday 22 October - Times available" in the label
+      const matches = (x) => x && re.test(x) && !(exclude && exclude.test(x));
+      if (!info || !info.visible || !info.name || !(matches(info.name) || matches(info.aria))) continue;
       const hit = { loc: b, name: info.name, link: info.link, frame: f };
       // prefer a control that can be clicked; remember the first match in case none can
       if (!(await problemClicking(b))) return hit;
@@ -257,7 +260,19 @@ async function problemClicking(loc) {
   try { await loc.click({ trial: true, timeout: 2500 }); return null; } catch (e) { return clickProblem(e.message); }
 }
 
-async function pressEnter(page) { await page.keyboard.press('Enter').catch(() => {}); }
+// Enter in a native form submits it; a POST is aborted by the route, a GET would really be sent
+async function pressEnter(page) {
+  for (const f of page.frames()) {
+    const getForm = await f.evaluate(() => {
+      const a = document.hasFocus() && document.activeElement;
+      const form = a && a !== document.body && a.closest && a.closest('form');
+      return !!form && (form.getAttribute('method') || 'get').toLowerCase() === 'get';
+    }).catch(() => false);
+    if (getForm) return false;
+  }
+  await page.keyboard.press('Enter').catch(() => {});
+  return true;
+}
 
 async function signature(page) {
   const parts = await Promise.all(visibleFrames(page).map((f) => f.evaluate(() => `${document.body ? document.body.innerText.length : 0}:${[...document.querySelectorAll('input,textarea')].map((e) => e.value).join('|')}`).catch(() => '')));
@@ -298,9 +313,17 @@ export async function walk(page, res, { shot } = {}) {
     if (!res.steps.length || res.steps[res.steps.length - 1].url !== url) res.steps.push({ url, notes: [] });
     const step = res.steps[res.steps.length - 1];
     for (const f of frames.slice(1)) {
-      if (PAY_FRAME.test(f.url())) { res.outcome = 'handoff'; res.stop = 'Payment fields: the user has to enter or confirm their card.'; return res; }
-      if (CAPTCHA_FRAME.test(f.url()) && !res.captcha) { res.captcha = true; res.friction.push('a captcha is on the page'); }
-      if (/typeform|calendly|hubspot|tally|jotform|cal\.com|chilipiper|google\.com\/forms/.test(f.url())) {
+      const shown = (PAY_FRAME.test(f.url()) || CAPTCHA_FRAME.test(f.url())) && await f.frameElement().then(async (e) => {
+        const box = await e.boundingBox();
+        return !!box && box.width >= 60 && box.height >= 30 && await e.evaluate((x, usable) => (0, eval)(usable)(x), USABLE);
+      }).catch(() => false);
+      if (PAY_FRAME.test(f.url()) && shown) { res.outcome = 'handoff'; res.stop = 'Payment fields: the user has to enter or confirm their card.'; return res; }
+      if (CAPTCHA_FRAME.test(f.url()) && !res.captcha) {
+        res.captcha = true;
+        if (shown) res.friction.push('a captcha is shown');
+        else step.notes.push('invisible score-based captcha on the page');
+      }
+      if (/(^|\.)(typeform\.com|calendly\.com|hubspot\.com|tally\.so|jotform\.com|cal\.com|chilipiper\.com)$|^docs\.google\.com$/.test((() => { try { return new URL(f.url()).hostname; } catch { return ''; } })())) {
         const label = `form inside an iframe from ${new URL(f.url()).host}`;
         if (!step.notes.includes(label)) step.notes.push(label);
       }
@@ -315,8 +338,9 @@ export async function walk(page, res, { shot } = {}) {
     res.filled += filled;
 
     // a booking slot (Calendly and similar): pick a day, then a time
-    const time = await findButton(frames, /^\d{1,2}[:.]\d{2}\s?(am|pm)?$/i);
-    const day = !time && await findButton(frames, /times? available/i);
+    // pick one slot only; after that the scheduler's own Next button takes over
+    const time = !res.slot && await findButton(frames, /^\d{1,2}[:.]\d{2}\s?(am|pm)?$/i);
+    const day = !res.slot && !time && await findButton(frames, /times? available/i);
     if (time || day) {
       const pick = time || day;
       if (!(await problemClicking(pick.loc))) { await pick.loc.click(); if (time) res.slot = time.name; step.notes.push(`picked ${time ? `time ${time.name}` : 'a day with times'}`); action = `picking ${time ? time.name : 'a day'}`; continue; }
@@ -329,19 +353,28 @@ export async function walk(page, res, { shot } = {}) {
       res.final = final.name;
       if (errors.length) res.friction.push(`validation messages showing: ${[...new Set(errors)].slice(0, 3).map((e) => `"${e}"`).join(', ')}`);
       if (problem) { res.outcome = 'stuck'; res.stop = `The "${final.name}" button ${problem}.`; }
+      else if (/\b(link|code)\b/i.test(final.name)) { res.outcome = 'handoff'; res.stop = `Stopped at "${final.name}": the user has to open the emailed link or code.`; }
       else { res.outcome = 'reached'; res.stop = `Stopped at "${final.name}" without pressing it.`; }
       return res;
     }
 
-    const next = await findButton(frames, NEXT) || (final && final.link ? final : null);
+    // with no next button, follow a call-to-action link (a plan's "Start free trial", "Continue to checkout")
+    const visited = res.visited || (res.visited = new Set());
+    visited.add(page.url().split('#')[0]);
+    let next = await findButton(frames, NEXT);
+    if (!next && !filled) {
+      const link = await findButton(frames, CTA_TEXT, { linksToo: true });
+      const href = link && link.link && await link.loc.evaluate((e) => e.href).catch(() => null);
+      if (href && !visited.has(href.split('#')[0])) { next = link; step.notes.push(`next: "${link.name}"`); }
+    }
     if (next) {
       const problem = await problemClicking(next.loc);
       if (!problem) { await next.loc.click().catch(() => {}); action = `clicking "${next.name}"`; }
       else { res.friction.push(`"${next.name}" ${problem}; the agent pressed Enter instead`); await pressEnter(page); action = 'pressing Enter'; }
       if (res.trace) res.trace.push(`step ${i}: filled ${filled}, next "${next.name}"${problem ? ` (${problem})` : ''}`);
     } else if (filled) {
-      await pressEnter(page);
-      action = 'pressing Enter';
+      if (await pressEnter(page)) action = 'pressing Enter';
+      else { res.outcome = 'reached'; res.stop = 'Filled the form, which submits on Enter; stopped before submitting.'; return res; }
     }
 
     if (res.trace && !next) res.trace.push(`step ${i}: filled ${filled}, no next button${final ? ` (saw "${final.name}")` : ''}`);

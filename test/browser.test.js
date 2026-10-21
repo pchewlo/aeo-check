@@ -152,3 +152,33 @@ test('browser: walks a form branch that redirects out of the form, without submi
     srv.close();
   }
 });
+
+test('browser: follows a plan link to an emailed-link sign-in, and never submits a GET form', { skip: !playwright && 'Playwright not installed' }, async () => {
+  const hits = [];
+  const pages = {
+    '/': '<!doctype html><html lang="en"><head><title>Acme</title></head><body><main><h1>Acme</h1><a href="/plans">Start 14 days free</a><a href="/search-demo">Request a demo</a></main></body></html>',
+    '/plans': '<!doctype html><html lang="en"><head><title>Plans</title></head><body><main><h1>Plans</h1><p>Starter £29</p><a href="/signin">Start free trial</a></main></body></html>',
+    '/signin': '<!doctype html><html lang="en"><head><title>Sign in</title></head><body><main><h1>Sign in</h1><form method="post" action="/magic"><input type="email" name="email"><button type="submit">Email me a sign-in link</button></form></main></body></html>',
+    '/search-demo': '<!doctype html><html lang="en"><head><title>Demo</title></head><body><main><h1>Find a demo slot</h1><form action="/slots"><input name="company" placeholder="Company"></form></main></body></html>',
+  };
+  const srv = createServer((req, res) => {
+    hits.push(`${req.method} ${req.url}`);
+    res.setHeader('content-type', 'text/html');
+    res.end(pages[req.url] || 'not found');
+  });
+  await new Promise((r) => srv.listen(0, '127.0.0.1', r));
+  const base = `http://127.0.0.1:${srv.address().port}`;
+  try {
+    const r = await runBrowserJourneys(`${base}/`, { playwright });
+    const trial = r.journeys.find((j) => j.name === 'Start 14 days free');
+    assert.equal(trial.outcome, 'handoff');
+    assert.match(trial.stop, /Stopped at "Email me a sign-in link": the user has to open the emailed link/);
+    assert.deepEqual(trial.steps.map((s) => new URL(s.url).pathname), ['/plans', '/signin']);
+    const demo = r.journeys.find((j) => j.name === 'Request a demo');
+    assert.equal(demo.outcome, 'reached');
+    assert.match(demo.stop, /submits on Enter; stopped before submitting/);
+    assert.ok(!hits.some((h) => /^POST|\/slots|\/magic/.test(h)), `nothing submitted: ${hits.join(', ')}`);
+  } finally {
+    srv.close();
+  }
+});
