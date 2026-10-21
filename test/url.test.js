@@ -150,3 +150,21 @@ test('url mode: robots.txt Sitemap lines without a scheme are flagged, and /site
   assert.equal(f[0].line, 3);
   assert.match(f[0].message, /"acme\.test\/sitemap\.xml" is not an absolute URL/);
 });
+
+test('url mode: a demo page whose form is a JavaScript Typeform embed needs a browser', async () => {
+  const doc = (body, tail = '') => `<!doctype html><html lang="en"><head><title>Acme</title></head><body><main>${body}</main>${tail}</body></html>`;
+  const nav = '<nav><a href="/">Home</a><a href="/request-demo">Request Demo</a></nav>';
+  const words = 'Acme helps clinic groups launch specialist care with clinical support, software and training for every site. '.repeat(3);
+  const flight = '<script>self.__next_f.push([1,"8f:[\\"$\\",\\"$L91\\",null,{\\"blockType\\":\\"typeformEmbed\\",\\"typeformId\\":\\"Xy7Kq2Lm\\"}]"])</script>';
+  const fetchImpl = fakeFetch({
+    'https://acme.test/': { body: doc(`${nav}<h1>Acme</h1><p>${words}</p><a href="/request-demo">Request Demo</a>`) },
+    'https://acme.test/request-demo': { body: doc(`${nav}<h1>Request a demo</h1><p>${words}</p><div id="tf"></div>`, flight) },
+  });
+  const r = await check({ url: 'https://acme.test/', fetchImpl });
+  const [demo] = r.site.journeys;
+  assert.equal(demo.name, 'Request Demo');
+  assert.equal(demo.goal, 'demo');
+  assert.equal(demo.outcome, 'needs-browser');
+  assert.match(demo.steps[0].notes[0], /Typeform form \(Xy7Kq2Lm\) loaded by JavaScript/);
+  assert.equal(r.findings.find((x) => x.ruleId === 'cta-journey').severity, 'warn');
+});
