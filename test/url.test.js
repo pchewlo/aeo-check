@@ -42,3 +42,15 @@ test('url mode: crawls internal links up to --max-pages', async () => {
 test('url mode: unreachable page is an error', async () => {
   await assert.rejects(check({ url: 'https://acme.test/', probe: false, fetchImpl: fakeFetch({}) }), /Could not fetch/);
 });
+
+test('url mode: booking links that block agents acting for a user (agent-paths)', async () => {
+  const home = '<!doctype html><html lang="en"><head><title>Harbour Hotel, Whitby</title></head><body><main><h1>Harbour Hotel</h1><p>Rooms from £120 a night.</p><a href="https://engine.test/hotel/42">Book now</a></main></body></html>';
+  const fetchImpl = fakeFetch({
+    'https://hotel.test/': { body: home },
+    'https://engine.test/hotel/42': (ua) => (/-User\//.test(ua) ? { status: 403, body: 'Access denied' } : { body: '<html><body>Choose dates</body></html>' }),
+  });
+  const r = await check({ url: 'https://hotel.test/', fetchImpl });
+  const f = r.findings.find((x) => x.ruleId === 'agent-paths');
+  assert.ok(f, 'expected agent-paths finding');
+  assert.match(f.message, /engine\.test\/hotel\/42 returns 200 to a browser but blocks ChatGPT-User \(403\), Claude-User \(403\), Perplexity-User \(403\)/);
+});

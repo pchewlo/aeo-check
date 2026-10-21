@@ -5,6 +5,7 @@ import { clientSignals } from './parse/js.js';
 import { parseRobots, parseSitemap, parseLlmsTxt } from './parse/sitefiles.js';
 import { analyseMarkup } from './analyse.js';
 import { finalisePage, isInternalHref } from './site.js';
+import { CTA_TEXT, COMMERCE_ROUTE } from './rules/_util.js';
 
 export const VERSION_UA = 'Mozilla/5.0 (compatible; aeo-check/0.1; +https://github.com/pchewlo/aeo-check)';
 const BROWSER_UA = 'Mozilla/5.0 (Macintosh; Intel Mac OS X 10_15_7) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/130.0 Safari/537.36';
@@ -110,6 +111,29 @@ export async function buildUrlSite(start, { maxPages = 1, probe = true, fetchImp
       return { token: p.token, status: r.status, challenge: isChallenge(r) };
     }));
     site.probes = results;
+
+    // booking and checkout links (often a third-party engine): can agents acting for a user open them?
+    const targets = [];
+    for (const page of site.pages) {
+      for (const c of page.controls || []) {
+        if (!c.href || !/^(https?:|\/)/.test(c.href)) continue;
+        const named = c.name && c.name.name && CTA_TEXT.test(c.name.name.trim());
+        let abs;
+        try { abs = new URL(c.href, page.file); } catch { continue; }
+        if (!named && !COMMERCE_ROUTE.test(abs.pathname)) continue;
+        if (!targets.includes(abs.href)) targets.push(abs.href);
+      }
+    }
+    site.commerceProbes = [];
+    for (const url of targets.slice(0, 3)) {
+      const agents = PROBES.filter((p) => /-User$/.test(p.token)).concat([{ token: 'Perplexity-User', ua: 'Mozilla/5.0 AppleWebKit/537.36 (KHTML, like Gecko; compatible; Perplexity-User/1.0; +https://perplexity.ai/perplexity-user)' }]);
+      const [browser, ...rest] = await Promise.all([{ token: 'browser', ua: BROWSER_UA }, ...agents].map(async (p) => {
+        const r = await get(url, { ua: p.ua, fetchImpl });
+        return { token: p.token, status: r.status, challenge: isChallenge(r) };
+      }));
+      if (browser.status >= 400 || browser.status === 0) continue;
+      site.commerceProbes.push({ url, browser: browser.status, blocked: rest.filter((r) => r.status >= 400 || r.challenge) });
+    }
   }
   return site;
 }
