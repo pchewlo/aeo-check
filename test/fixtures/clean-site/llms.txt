@@ -1,0 +1,8 @@
+# Acme analytics
+
+> Retention reporting for product teams: weekly cohorts, activation events and time to first value.
+
+## Product
+
+- [Overview](https://acme.test/): what Acme analytics measures and who it is for
+- [Pricing](https://acme.test/pricing): Team and Scale plans compared
