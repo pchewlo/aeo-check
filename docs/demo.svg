@@ -1,0 +1,25 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="860" height="471" viewBox="0 0 860 471" role="img" aria-label="aeo-check output: a single-page app scores 31/100 for an empty main element, a noindex header and hash routing">
+  <rect width="860" height="471" rx="10" fill="#0d1117"/>
+  <circle cx="22" cy="20" r="6" fill="#ff5f57"/><circle cx="42" cy="20" r="6" fill="#febc2e"/><circle cx="62" cy="20" r="6" fill="#28c840"/>
+  <g font-family="ui-monospace, SFMono-Regular, Menlo, Consolas, 'Liberation Mono', monospace" font-size="13">
+  <text x="22" y="58" xml:space="preserve"><tspan fill="#7ee787">$ </tspan><tspan fill="#e6edf3">npx github:pchewlo/aeo-check</tspan></text>
+  <text x="22" y="79" xml:space="preserve"><tspan fill="#8b949e">27 pages, 0 components, 15 scripts, framework: static</tspan></text>
+  
+  <text x="22" y="121" xml:space="preserve"><tspan fill="#e6edf3" font-weight="700">index.html  /</tspan><tspan fill="#8b949e">  score </tspan><tspan fill="#ff7b72" font-weight="700">31/100</tspan></text>
+  <text x="22" y="142" xml:space="preserve"><tspan fill="#ff7b72">  error </tspan><tspan fill="#e6edf3">noindex  </tspan><tspan fill="#8b949e">index.html:6</tspan></text>
+  <text x="22" y="163" xml:space="preserve"><tspan fill="#ff7b72">  error </tspan><tspan fill="#e6edf3">client-only-content  </tspan><tspan fill="#8b949e">index.html:539</tspan></text>
+  <text x="22" y="184" xml:space="preserve"><tspan fill="#8b949e">        &lt;main id="app"&gt; is empty in the HTML and the page has 0 words of text</tspan></text>
+  <text x="22" y="205" xml:space="preserve"><tspan fill="#8b949e">        without JavaScript.</tspan></text>
+  <text x="22" y="226" xml:space="preserve"><tspan fill="#ff7b72">  error </tspan><tspan fill="#e6edf3">hash-routing  </tspan><tspan fill="#8b949e">index.html:629</tspan></text>
+  <text x="22" y="247" xml:space="preserve"><tspan fill="#8b949e">        Hash-based routing found (4 places, first on line 629).</tspan></text>
+  <text x="22" y="268" xml:space="preserve"><tspan fill="#d29922">  warn  </tspan><tspan fill="#e6edf3">canonical, meta-description, structured-data, js-only-links</tspan></text>
+  
+  <text x="22" y="310" xml:space="preserve"><tspan fill="#e6edf3" font-weight="700">c/&lt;post&gt;.html  /c/&lt;post&gt;</tspan><tspan fill="#8b949e">  score </tspan><tspan fill="#d29922" font-weight="700">84/100</tspan><tspan fill="#8b949e">   (26 pages like this)</tspan></text>
+  <text x="22" y="331" xml:space="preserve"><tspan fill="#ff7b72">  error </tspan><tspan fill="#e6edf3">canonical  </tspan><tspan fill="#8b949e">c/&lt;post&gt;.html:10</tspan></text>
+  <text x="22" y="352" xml:space="preserve"><tspan fill="#8b949e">        Canonical URL contains a fragment (https://example.app/#&lt;post&gt;).</tspan></text>
+  <text x="22" y="373" xml:space="preserve"><tspan fill="#8b949e">        Crawlers drop the fragment, so this points at https://example.app/.</tspan></text>
+  <text x="22" y="394" xml:space="preserve"><tspan fill="#d29922">  warn  </tspan><tspan fill="#e6edf3">meta-refresh  </tspan><tspan fill="#8b949e">c/&lt;post&gt;.html:10</tspan></text>
+  
+  <text x="22" y="436" xml:space="preserve"><tspan fill="#e6edf3" font-weight="700">Overall </tspan><tspan fill="#d29922" font-weight="700">76/100</tspan><tspan fill="#8b949e">  </tspan><tspan fill="#ff7b72">32 errors</tspan><tspan fill="#8b949e">, </tspan><tspan fill="#d29922">33 warnings</tspan><tspan fill="#8b949e">, </tspan><tspan fill="#79c0ff">2 info</tspan></text>
+  </g>
+</svg>
