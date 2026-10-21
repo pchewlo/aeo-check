@@ -1,5 +1,5 @@
-// Every rule cites at least one of these. Posts are from the MVXX AEO bookmark set (Oct 2026);
-// docs are the vendors' and standards bodies' own pages.
+// Every rule cites at least one of these: practitioner posts on X (collected Oct 2026)
+// and the vendors' and standards bodies' own documentation.
 export const SOURCES = {
   // X posts
   'x-jingg': { label: '@Jingg_n_Tonic on ChatGPT retrieval: answer within each section, plain text, claims beside evidence (quoting @metehan777)', url: 'https://x.com/Jingg_n_Tonic/status/2097252340973617458' },
