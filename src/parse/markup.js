@@ -171,11 +171,12 @@ export function parseMarkup(src, { mode = 'html', lineOffset = 0 } = {}) {
     };
     if (/^[A-Z]/.test(name) || (name.includes('.') && !name.includes(':'))) el.component = true;
     let selfClosing = false;
+    let closed = false;
     while (j < n) {
       while (j < n && /\s/.test(src[j])) j++;
       const c = src[j];
-      if (c === '>') { j++; break; }
-      if (c === '/' && src[j + 1] === '>') { selfClosing = true; j += 2; break; }
+      if (c === '>') { j++; closed = true; break; }
+      if (c === '/' && src[j + 1] === '>') { selfClosing = true; closed = true; j += 2; break; }
       if (c === '/' && !jsx) { j++; continue; }
       if (c === '{' && braces) {
         const e = skipBraces(j, null);
@@ -223,7 +224,7 @@ export function parseMarkup(src, { mode = 'html', lineOffset = 0 } = {}) {
         el.attrs[an] = { value: '', dynamic: dyn, line: attrLine, bare: true };
       }
     }
-    if (j >= n && jsx) return null;
+    if (!closed && jsx) return null;
     return { el, end: j, selfClosing };
   }
 
