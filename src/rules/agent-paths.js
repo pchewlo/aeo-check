@@ -11,7 +11,7 @@ export default {
   scope: 'site',
   category: 'agents',
   title: 'Agents may reach product, booking and checkout paths',
-  rationale: 'An assistant booking or buying for a user fetches the booking and checkout pages with its user agent. In Larne\'s hotel test (Getting CEOs to trust CMOs, Oct 2026) the booking engine blocked automated access, so three of four assistants never saw a price. Keeping checkout out of search indexes is fine; blocking the agents acting for a user is not.',
+  rationale: 'An assistant booking or buying for a user fetches the booking and checkout pages with its user agent. In Larne\'s hotel test (Getting CEOs to trust CMOs, Oct 2026) the booking engine blocked automated access, so three of four assistants never saw a price. Keeping checkout out of search indexes is fine, but the agents acting for a user need to reach it.',
   sources: ['larne-agents', 'openai-bots', 'anthropic-bots', 'perplexity-bots', 'rfc9309'],
   fix: 'Add a robots.txt group for ChatGPT-User, Claude-User and Perplexity-User with "Allow: /" (or allow your booking and checkout paths), and check your booking engine or WAF does not block them.',
   check(site) {
