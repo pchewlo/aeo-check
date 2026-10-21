@@ -202,4 +202,12 @@ test('llms-txt-cta: llms.txt names a different demo link from the page button', 
   assert.match(f[0].message, /llms\.txt links "Book a demo" \(calendly\.com\/acme\/old-demo\) to book a demo or call, but the page's "Book a demo" goes to calendly\.com\/acme\/growth-demo/);
   const same = await check({ url: 'https://acme.test/', fetchImpl: fakeFetch(routes('https://calendly.com/acme/growth-demo/')) });
   assert.equal(same.findings.filter((x) => x.ruleId === 'llms-txt-cta').length, 0);
+
+  // a bare URL in a sentence counts too
+  const bare = `# Acme\n\n> Analytics for product teams.\n\n## Company\n\nAcme, London. Book a demo (15 minutes): https://calendly.com/acme/old-demo\n`;
+  const r2 = await check({ url: 'https://acme.test/', fetchImpl: fakeFetch({ ...routes('x'), 'https://acme.test/llms.txt': { body: bare, headers: { 'content-type': 'text/plain' } } }) });
+  const f2 = r2.findings.filter((x) => x.ruleId === 'llms-txt-cta');
+  assert.equal(f2.length, 1);
+  assert.equal(f2[0].line, 7);
+  assert.match(f2[0].message, /llms\.txt links "Book a demo \(15 minutes\)" \(calendly\.com\/acme\/old-demo\)/);
 });

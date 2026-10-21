@@ -43,6 +43,14 @@ export default {
     const walks = (site.browser && site.browser.journeys) || [];
     const out = [];
     const links = site.llms.parsed.sections.flatMap((s) => s.links);
+    // many files give actions as a bare URL in a sentence ("Book a demo: https://...") rather than a link item
+    (site.llms.content || '').split(/\r?\n/).forEach((text, i) => {
+      for (const m of text.matchAll(/https?:\/\/[^\s)>\]]+/g)) {
+        const url = m[0].replace(/[.,;:]+$/, '');
+        if (links.some((l) => l.url === url)) continue;
+        links.push({ name: text.slice(Math.max(0, m.index - 60), m.index).replace(/^.*[.!?]\s+/, '').replace(/[\s:(—-]+$/, '').trim() || url, url, notes: '', line: i + 1 });
+      }
+    });
     for (const j of site.journeys) {
       const dests = new Set();
       const add = (u) => { const k = u && sameTarget(u); if (k) dests.add(k); };
