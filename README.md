@@ -12,7 +12,7 @@ You can also paste this repo's link into Claude Code, Codex or Cursor and ask it
 
 ## Install
 
-Node 18 or later. No required dependencies; the Anthropic SDK is optional and only loaded by `--ai`.
+Node 18 or later. No required dependencies; the Anthropic SDK is optional and only loaded by `--ai`, and Playwright is optional and only loaded by `--browser` (`npm install -D playwright && npx playwright install chromium`).
 
 ```sh
 npx github:pchewlo/aeo-check            # run once, no install
@@ -26,6 +26,7 @@ aeo-check                          # check the current repository
 aeo-check ./site                   # check a sub-folder
 aeo-check https://example.com      # fetch a live page as a crawler does (no JavaScript)
 aeo-check https://example.com --max-pages 20
+aeo-check https://example.com --browser   # also walk the main CTAs in headless Chromium
 aeo-check --since origin/main      # report only files changed on this branch
 aeo-check --format json            # also: sarif, github, markdown
 aeo-check --list-rules
@@ -43,12 +44,15 @@ aeo-check --list-rules
 | `--ignore <glob>` | Skip paths (repeatable) |
 | `--site-url <url>` | Production URL, used for canonical and internal-link checks |
 | `--max-pages <n>`, `--no-probe` | URL mode: pages to crawl; skip the AI user-agent probe and the call-to-action journey |
+| `--browser` | URL mode: also walk the main calls to action in headless Chromium, up to the final submit (see below) |
 | `--ai`, `--ai-model <id>`, `--ai-max-pages <n>` | Add the judgement rules (see below) |
 | `--quiet`, `--no-color` | Shorter text output |
 
 Passing file paths after the directory (`aeo-check . src/app/page.tsx`) checks the whole site and reports only those files. Exit codes: 0 clean, 1 findings at or above `--fail-on`, 2 usage error.
 
 Each finding has a rule id, severity, location, the reason it matters for AI answers and a concrete fix. Pages get a score out of 100 (an error costs 12, a warning 4, an info 1, with each rule counted at most twice per page); the overall score is 60% the page average and 40% the site-level score.
+
+In URL mode the report also gives an **Agent score** out of 100: whether an assistant acting for a user can complete the start page's main calls to action. It sits next to the overall score rather than inside it, so one blocked call to action is not averaged away by fifty content rules. Each call to action scores 100 when the agent reaches a form or the final submit button, 90 when only the user can finish (card, OAuth, emailed link), 50 when it needs a browser, 25 for a dead end and 0 when broken; a browser walk that gets stuck scores 30, and each piece of friction costs 10. With `--browser`, the fetch-only result counts 40% and the browser result 60%. The call to action with the most links counts 60% of the score.
 
 ### Calls to action
 
@@ -72,7 +76,13 @@ Calls to action, followed as an agent that does not run JavaScript
                 The user has to finish: the link goes to their inbox, or it needs their Google account.
 ```
 
-It also notes when several choices (plans, rooms) share one URL, so the choice is lost on the way. JSON output carries the full path under `journeys`.
+It also notes when several choices (plans, rooms) share one URL, so the choice is lost on the way, and names the form or scheduler a page loads with JavaScript (Typeform, HubSpot, Calendly, Cal.com, Chili Piper, Tally, Jotform, Marketo, Google Forms). For a Typeform it reads the public form definition and reports how many fields are required, which answers redirect elsewhere and whether there is a booking step. JSON output carries the full path under `journeys`.
+
+#### In a browser (`--browser`)
+
+Agents that drive a real browser (ChatGPT agent, Claude in Chrome) can use JavaScript forms, so `--browser` walks each distinct call-to-action destination on the rendered start page in headless Chromium, as such an agent would: it dismisses the cookie banner, fills fields with test data (an example.com email, never card details), answers choice questions, picks a booking slot and presses next, until it reaches the final submit button. It checks that button can be clicked and **never presses it**. Every request other than GET, HEAD and OPTIONS is aborted, so nothing is sent, booked or paid for, including autosave and analytics calls.
+
+The `cta-browser` rule reports a walk that gets stuck or fails (error), friction on the way, such as a button outside the visible area, a click that does nothing so the agent falls back to Enter or scrolling, or a validation message (warning), and calls to action that appear, or change their link, only after JavaScript runs (warning). JSON output carries each walk under `browser`.
 
 ### Config
 
@@ -144,6 +154,7 @@ Routes are worked out from Next.js (app and pages routers, including `metadata` 
 |  | `img-alt` | warn | Images have alt text |
 | Agent readiness | `accessible-names` | warn | Links and buttons have an accessible name |
 |  | `agent-paths` | warn | Agents may reach product, booking and checkout paths |
+|  | `cta-browser` | error | (--browser) A browser agent can complete the main call to action up to the final submit |
 |  | `cta-journey` | error | An agent can follow the main call to action to a form, sign-in or payment (URL mode) |
 |  | `commerce-facts` | warn | Prices and key policies are plain text in the HTML |
 |  | `load-interstitials` | warn | No pop-ups or modals in front of the main content |
@@ -241,7 +252,7 @@ An AI crawler fetching this site gets an empty `<main>` and a noindex header, an
 
 ## Limits
 
-aeo-check reads source code. Text that a component, CMS or database supplies at build or request time is invisible to it, so rules that need the full text (thin content, author, dates) skip or soften findings on those pages. Run it against a deployed URL to check what crawlers receive. URL mode does not run JavaScript, which matches how GPTBot, ClaudeBot and PerplexityBot fetch pages. The `--ai` rules give a model's judgement and can be wrong.
+aeo-check reads source code. Text that a component, CMS or database supplies at build or request time is invisible to it, so rules that need the full text (thin content, author, dates) skip or soften findings on those pages. Run it against a deployed URL to check what crawlers receive. URL mode does not run JavaScript, which matches how GPTBot, ClaudeBot and PerplexityBot fetch pages; `--browser` adds one Chromium walk per call to action, which follows a generic script (fill, answer, next) and can fail on flows a person or a stronger agent would finish. The `--ai` rules give a model's judgement and can be wrong.
 
 ## Sources
 

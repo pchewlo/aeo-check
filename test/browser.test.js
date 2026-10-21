@@ -2,6 +2,8 @@ import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { createServer } from 'node:http';
 import { valueFor, clickProblem, diffCtas, runBrowserJourneys } from '../src/browser.js';
+import { agentScore } from '../src/agent-score.js';
+import { RULES_BY_ID } from '../src/rules/index.js';
 
 test('browser: test values by field type and label, and card fields stop the walk', () => {
   assert.equal(valueFor({ type: 'email' }).value, 'agent.test@example.com');
@@ -31,6 +33,40 @@ test('browser: CTAs that appear or change only after JavaScript', () => {
     { kind: 'href-changed', name: 'Request Demo', server: 'https://acme.test/request-demo', rendered: 'https://forms.acme.test/to/abc' },
     { kind: 'js-only', name: 'Start free trial', rendered: 'https://acme.test/signup' },
   ]);
+});
+
+const SITE = {
+  pages: [{ file: 'https://acme.test/' }],
+  journeys: [
+    { name: 'Request Demo', count: 3, outcome: 'needs-browser', steps: [] },
+    { name: 'Start free trial', count: 1, outcome: 'handoff', steps: [] },
+  ],
+  browser: {
+    journeys: [
+      { name: 'Request Demo', href: 'https://forms.acme.test/to/abc', outcome: 'reached', stop: 'Stopped at "Submit" without pressing it.', steps: [{ url: 'https://forms.acme.test/to/abc', notes: [] }], friction: [] },
+      { name: 'Request Demo', href: 'https://acme.test/request-demo', outcome: 'stuck', stop: 'Stuck after filling "Company".', steps: [{ url: 'https://acme.test/request-demo', notes: ['form inside an iframe from forms.acme.test'] }], friction: ['clicking "OK" did nothing; the agent pressed Enter'] },
+      { name: 'Start free trial', href: 'https://acme.test/signup', outcome: 'handoff', stop: 'Payment fields: the user has to enter or confirm their card.', steps: [{ url: 'https://acme.test/signup', notes: [] }], friction: [] },
+    ],
+    ctaDiff: [{ kind: 'href-changed', name: 'Request Demo', server: 'https://acme.test/request-demo', rendered: 'https://forms.acme.test/to/abc' }],
+  },
+};
+
+test('cta-browser: stuck walks are errors, card hand-offs info, and changed CTA links warnings', () => {
+  const f = RULES_BY_ID['cta-browser'].check(SITE);
+  assert.deepEqual(f.map((x) => x.severity), ['error', 'info', 'warn']);
+  assert.match(f[0].message, /In a browser, "Request Demo" \(to acme\.test\/request-demo\) got stuck: .*Stuck after filling "Company"\. Friction: clicking "OK" did nothing/);
+  assert.match(f[2].message, /goes to acme\.test\/request-demo in the HTML but to forms\.acme\.test\/to\/abc once JavaScript runs/);
+  assert.deepEqual(RULES_BY_ID['cta-browser'].check({ ...SITE, browser: undefined }), []);
+});
+
+test('agent score: fetch-only and browser results, primary CTA weighted 60%', () => {
+  const a = agentScore(SITE);
+  // Request Demo: fetch 50, browser avg(100, 30) = 65 -> 0.4*50 + 0.6*65 = 59; Start free trial: 90 both -> 90
+  assert.deepEqual(a.ctas.map((c) => [c.name, c.fetchOnly, c.browser, c.score]), [['Request Demo', 50, 65, 59], ['Start free trial', 90, 90, 90]]);
+  assert.equal(a.score, Math.round(0.6 * 59 + 0.4 * 90));
+  assert.equal(a.fetchOnly, Math.round(0.6 * 50 + 0.4 * 90));
+  assert.equal(agentScore({ ...SITE, browser: undefined }).browser, null);
+  assert.equal(agentScore({ pages: [], journeys: [] }), null);
 });
 
 let playwright = null;
