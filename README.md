@@ -1,6 +1,6 @@
-# aeo-check
+# AEO Checker
 
-Answer engine optimisation (AEO) is making a site easy for ChatGPT, Claude, Perplexity, Gemini and Google's AI Overviews to fetch, understand and cite. aeo-check reads a site's code (HTML, JSX/TSX, Vue, Svelte, Astro, Markdown, robots.txt, sitemap.xml, llms.txt) or a live URL and reports what gets in the way, with a file, line and fix for each finding, so it can run on every commit and pull request.
+Answer engine optimisation (AEO) is making a site easy for ChatGPT, Claude, Perplexity, Gemini and Google's AI Overviews to fetch, understand and cite. AEO Checker reads a site's code (HTML, JSX/TSX, Vue, Svelte, Astro, Markdown, robots.txt, sitemap.xml, llms.txt) or a live URL and reports what gets in the way, with a file, line and fix for each finding, so it can run on every commit and pull request.
 
 ## Install
 
