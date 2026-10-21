@@ -7,6 +7,7 @@ import { runRules, summarise } from './engine.js';
 import { runAI } from './ai.js';
 import { loadConfig } from './config.js';
 import { runBrowserJourneys } from './browser.js';
+import { agentScore } from './agent-score.js';
 import { CTA_TEXT } from './rules/_util.js';
 
 export const VERSION = JSON.parse(readFileSync(new URL('../package.json', import.meta.url), 'utf8')).version;
@@ -58,6 +59,7 @@ export async function check(options = {}) {
   }
   if (site.parseErrors && site.parseErrors.length) notes.push(`Could not parse ${site.parseErrors.length} file(s): ${site.parseErrors.slice(0, 3).map((e) => e.path).join(', ')}`);
   const summary = summarise(site, findings);
+  if (site.mode === 'url') summary.agent = agentScore(site);
   if (options.onlyFiles && options.onlyFiles.length) {
     const set = new Set(options.onlyFiles);
     summary.pages = summary.pages.filter((p) => set.has(p.file));

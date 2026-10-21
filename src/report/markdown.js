@@ -6,13 +6,20 @@ export function formatMarkdown(result, { maxRows = 60 } = {}) {
   out.push('<!-- aeo-check -->');
   out.push(`### aeo-check: ${summary.overall}/100`);
   out.push('');
-  out.push(`${error} errors, ${warn} warnings, ${info} info across ${summary.pages.length} pages.`);
+  out.push(`${error} errors, ${warn} warnings, ${info} info across ${summary.pages.length} pages.${summary.agent ? ` Agent score ${summary.agent.score}/100 (fetch-only ${summary.agent.fetchOnly}${summary.agent.browser !== null ? `, browser ${summary.agent.browser}` : ''}).` : ''}`);
   out.push('');
   if (result.site && result.site.journeys && result.site.journeys.length) {
     out.push('| Call to action | Outcome | Path (as an agent without JavaScript) |');
     out.push('| --- | --- | --- |');
     const cell = (x) => String(x).replace(/\|/g, '\\|').replace(/\n/g, ' ');
     for (const j of result.site.journeys) out.push(`| ${cell(j.name)} | ${j.outcome} | ${cell([...j.steps.map((s) => `${s.finalUrl || s.url} (${s.status}${s.notes.length ? `: ${s.notes.join('; ')}` : ''})`), j.stop].filter(Boolean).join(' → '))} |`);
+    out.push('');
+  }
+  if (result.site && result.site.browser && result.site.browser.journeys.length) {
+    out.push('| Call to action | In a browser | Path (stopped before the final submit) |');
+    out.push('| --- | --- | --- |');
+    const cell = (x) => String(x).replace(/\|/g, '\\|').replace(/\n/g, ' ');
+    for (const w of result.site.browser.journeys) out.push(`| ${cell(w.name)} | ${w.outcome} | ${cell([...w.steps.map((s) => s.url + (s.notes.length ? ` (${s.notes.join('; ')})` : '')), ...w.friction.map((f) => `friction: ${f}`), w.stop].filter(Boolean).join(' → '))} |`);
     out.push('');
   }
   const pages = [...summary.pages].sort((a, b) => a.score - b.score).slice(0, 15);

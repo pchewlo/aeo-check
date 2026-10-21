@@ -3,6 +3,8 @@ import assert from 'node:assert/strict';
 import { check } from '../src/index.js';
 import { CTA_TEXT } from '../src/rules/_util.js';
 import { readFileSync } from 'node:fs';
+import { formatText } from '../src/report/text.js';
+import { formatMarkdown } from '../src/report/markdown.js';
 
 const SHELL = '<!doctype html><html lang="en"><head><title>Acme</title><meta name="description" content="Acme analytics for product teams and their retention reports."></head><body><div id="root"></div><script src="/assets/index.js"></script></body></html>';
 
@@ -170,6 +172,9 @@ test('url mode: a demo page whose form is a JavaScript Typeform embed needs a br
   assert.match(demo.steps[0].notes[0], /Typeform form \(Xy7Kq2Lm\) loaded by JavaScript/);
   assert.equal(r.findings.find((x) => x.ruleId === 'cta-journey').severity, 'warn');
   assert.equal(r.site.journeys[0].form, undefined, 'no share page, no summary');
+  assert.deepEqual([r.summary.agent.score, r.summary.agent.fetchOnly, r.summary.agent.browser], [50, 50, null]);
+  assert.match(formatText(r), /Agent score 50\/100  can an assistant complete the main calls to action \(fetch-only 50, run with --browser/);
+  assert.match(formatMarkdown(r), /Agent score 50\/100 \(fetch-only 50\)/);
 
   // with the share page reachable, the journey reports what the form asks and where it sends people
   const share = readFileSync(new URL('./fixtures/typeform-share-page.html', import.meta.url), 'utf8');
