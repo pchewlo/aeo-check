@@ -54,3 +54,14 @@ test('url mode: booking links that block agents acting for a user (agent-paths)'
   assert.ok(f, 'expected agent-paths finding');
   assert.match(f.message, /engine\.test\/hotel\/42 returns 200 to a browser but blocks ChatGPT-User \(403\), Claude-User \(403\), Perplexity-User \(403\)/);
 });
+
+test('url mode: a start URL without a trailing slash is not crawled twice', async () => {
+  const page = (title, links) => `<!doctype html><html lang="en"><head><title>${title}</title></head><body><main><h1>${title}</h1>${links.map((l) => `<a href="${l}">${l}</a>`).join('')}</main></body></html>`;
+  const fetchImpl = fakeFetch({
+    'https://acme.test/': { body: page('Home of Acme analytics', ['/', '/a']) },
+    'https://acme.test/a': { body: page('Acme page A', ['/']) },
+  });
+  const r = await check({ url: 'https://acme.test', maxPages: 5, probe: false, fetchImpl });
+  assert.deepEqual(r.site.pages.map((p) => p.route), ['/', '/a']);
+  assert.ok(!r.findings.some((f) => f.ruleId === 'duplicate-title'));
+});

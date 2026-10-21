@@ -81,9 +81,11 @@ export async function buildUrlSite(start, { maxPages = 1, probe = true, fetchImp
 
   const queue = [start];
   const seen = new Set();
+  // https://a.test and https://a.test/ are one page; so is a URL and where it redirects to
+  const norm = (u) => { try { const x = new URL(u); x.hash = ''; return x.href; } catch { return u.split('#')[0]; } };
   if (maxPages > 1 && site.sitemap && site.sitemap.urls) for (const s of site.sitemap.urls) if (s.loc) queue.push(s.loc);
   while (queue.length && site.pages.length < maxPages) {
-    const url = queue.shift().split('#')[0];
+    const url = norm(queue.shift());
     if (seen.has(url)) continue;
     seen.add(url);
     log(`fetch ${url}`);
@@ -92,6 +94,14 @@ export async function buildUrlSite(start, { maxPages = 1, probe = true, fetchImp
       if (site.pages.length === 0) site.fetchError = { url, status: r.status, error: r.error };
       continue;
     }
+    if (r.url && norm(r.url) !== url) {
+      if (seen.has(norm(r.url))) continue;
+      seen.add(norm(r.url));
+    }
+    const finalUrl = (r.url || url).split('#')[0];
+    // a redirect can land on a page already crawled (e.g. /uk/ -> /uk)
+    if (finalUrl !== url && seen.has(finalUrl)) continue;
+    seen.add(finalUrl);
     const page = pageFromHtml(r.text, r.url || url, r.headers);
     site.pages.push(page);
     for (const l of page.links) {
