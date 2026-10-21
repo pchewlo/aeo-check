@@ -6,7 +6,7 @@ import { parseRobots, robotsFromNextRoute, parseSitemap, parseLlmsTxt } from './
 import { analyseMarkup, analyseMarkdown, words } from './analyse.js';
 
 const UTILITY = /(^|\/)(404|500|_error|error|not-found|offline|login|log-in|signin|sign-in|signup|sign-up|register|logout|account|admin|dashboard|settings|profile|checkout|cart|basket|thank-?you|thanks|success|unsubscribe|reset|forgot|verify|confirm|preview|draft|drafts|api|auth|callback|search|private|internal|editor|styleguide|playground|test)(\/|$)/i;
-const ARTICLE = /(^|\/)(blog|blogs|posts?|articles?|news|guides?|insights|stories|case-studies|resources|learn|journal|updates|changelog|explore|library|knowledge|kb|help|tutorials?)(\/|$)/i;
+const ARTICLE = /(^|\/)(blog|blogs|posts?|articles?|news|guides?|insights|stories|case-studies|resources|learn|journal|updates|explore|library|knowledge|kb|help|tutorials?)\/[^/]+/i;
 const CONTENT_DIRS = /^(src\/content|content|docs|blog|posts|_posts|articles|guides|src\/pages|pages|src\/routes|app|src\/app|website\/docs|website\/blog|site)\//;
 const SKIP_MD = /(^|\/)(README|CHANGELOG|CONTRIBUTING|CODE_OF_CONDUCT|SECURITY|LICENSE|HANDOFF|TODO|NOTES|AGENTS|CLAUDE|SKILL)(\.[a-z]+)?\.mdx?$/i;
 
@@ -94,6 +94,16 @@ export function classify(path, fw) {
     return { route: cleanRoute(r.split('/')), kind: 'md', role: 'page', contentFile: true };
   }
   return null;
+}
+
+const STRONG_CONTENT = /^(src\/content|content|_posts|blog|posts|articles|guides|src\/pages|pages|src\/routes|app|src\/app)\//;
+const DOCS_GENERATOR = /^(mkdocs\.ya?ml|docusaurus\.config\.[jt]s|\.vitepress\/config\.[jt]s|_config\.ya?ml|hugo\.(toml|ya?ml)|config\.toml|\.eleventy\.js|eleventy\.config\.[cm]?js|book\.toml|astro\.config\.[cm]?[jt]s)$/;
+
+/** Markdown is site content when it sits in a framework content folder, has frontmatter, or a docs generator builds it. */
+function isSiteMarkdown(file, files) {
+  if (STRONG_CONTENT.test(file.path)) return true;
+  if (/^(---|\+\+\+)\r?\n[\s\S]*?\b(title|layout|permalink|slug|date)\s*[:=]/.test(file.content.slice(0, 2000))) return true;
+  return files.some((f) => DOCS_GENERATOR.test(f.path));
 }
 
 const CODE_EXT = /\.(jsx|tsx|js|mjs|cjs|ts|mts|vue|svelte|astro)$/;
@@ -291,6 +301,7 @@ export function buildSite(files, config = {}) {
   const layoutsByDir = new Map();
   for (const f of files) {
     const info = classify(f.path, fw);
+    if (info && info.contentFile && !isSiteMarkdown(f, files)) continue;
     if (info) {
       let model;
       try { model = analyseFile(f, info); } catch (e) { model = null; site.parseErrors = (site.parseErrors || []).concat({ path: f.path, error: e.message }); }
@@ -390,7 +401,7 @@ export function finalisePage(page) {
   page.isRedirect = !!(page.metaRefresh && /url\s*=/i.test(page.metaRefresh.content || '') && page.wordCount < 80);
   const ogType = page.head.og && typeof page.head.og.type === 'string' ? page.head.og.type : '';
   const ldTypes = jsonLdTypes(page);
-  page.isArticle = !page.isHome && (ARTICLE.test(page.route) || ARTICLE.test(page.file) || ogType === 'article' || ldTypes.some((t) => /Article|BlogPosting|NewsArticle/.test(t)) || !!(page.head.published && page.kind === 'md'));
+  page.isArticle = !page.isHome && (ARTICLE.test(page.route) || ogType === 'article' || ldTypes.some((t) => /Article|BlogPosting|NewsArticle/.test(t)) || !!(page.head.published && page.kind === 'md'));
   page.dataDriven = page.isDynamicRoute || (page.signals && page.signals.serverData) || (page.exprCount > 3 && page.staticWordCount < 80);
   return page;
 }

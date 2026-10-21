@@ -103,7 +103,7 @@ test('img-alt: missing, placeholder and decorative', () => {
   const f = findings('img-alt', { 'index.html': html({ body }) });
   assert.equal(f.length, 2);
   assert.equal(findings('img-alt', { 'components/Hero.tsx': 'export const Hero = () => <Image src="/hero.png" width={10} height={10} />' }).length, 1);
-  assert.equal(findings('img-alt', { 'docs/a.md': '# A\n\n![](/shot.png)\n' }).length, 1);
+  assert.equal(findings('img-alt', { 'content/a.md': '# A\n\n![](/shot.png)\n' }).length, 1);
 });
 
 test('facts-in-images: pricing and chart images', () => {

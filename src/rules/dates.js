@@ -27,6 +27,9 @@ export default {
     if (!machine && !visible) out.push({ line: 1, message: 'No publication or update date, visible or in metadata.' });
     else if (!machine) out.push({ line: 1, message: 'Date is visible but not machine-readable (no datePublished/dateModified).' });
     else if (!visible && page.kind !== 'md') out.push({ line: 1, severity: 'info', message: 'Date is in metadata but not shown on the page.' });
+    if (page.dataDriven && !['html', 'url', 'md'].includes(page.kind)) {
+      for (const f of out) { f.severity = 'info'; f.message += ' This page renders data, so check the live page (aeo-check <url>).'; }
+    }
     const mod = page.head.modified || page.head.published;
     if (mod && mod.value) {
       const d = new Date(mod.value);

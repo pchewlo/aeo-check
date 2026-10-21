@@ -165,9 +165,7 @@ function analyseElements(doc, model) {
         text: clean(textOf(el)), line: el.line, tag: el.name, onClick: click ? click.value : null, inChrome,
         routerLink: hasAttr(el, 'routerlink'), spread: el.spread,
       });
-    } else if (click && el.tag !== 'button' && NAV_CODE.test(click.value || '')) {
-      model.clickNav.push({ tag: el.name, line: el.line, code: click.value });
-    } else if (click && el.tag === 'button' && NAV_CODE.test(click.value || '') && /location\.href|router\.push|navigate\(|location\.hash|\$router\.push/.test(click.value)) {
+    } else if (click && !/^(button|input|form|select|option|summary)$/i.test(el.name) && !/Button$/.test(el.name) && NAV_CODE.test(click.value || '')) {
       model.clickNav.push({ tag: el.name, line: el.line, code: click.value });
     }
     if (el.tag === 'time') model.times.push({ datetime: attr(el, 'datetime'), text: clean(textOf(el)), line: el.line });

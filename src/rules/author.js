@@ -14,6 +14,7 @@ export default {
     if (!page.isArticle || !isIndexable(page)) return [];
     const byline = page.bylineHints.length > 0 || /\b(by|written by|author:?)\s+[A-Z][a-z]+(\s+[A-Z][a-z'-]+)+/.test(page.blocks.slice(0, 6).map((b) => b.text).join(' '));
     if (page.head.author || ldHas(page, 'author') || byline) return [];
-    return [{ line: 1, message: 'No author found (byline, meta author, frontmatter author or JSON-LD author).' }];
+    const data = page.dataDriven && !['html', 'url', 'md'].includes(page.kind);
+    return [{ line: 1, severity: data ? 'info' : undefined, message: `No author found (byline, meta author, frontmatter author or JSON-LD author).${data ? ' This page renders data, so check the live page (aeo-check <url>).' : ''}` }];
   },
 };

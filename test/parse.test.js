@@ -108,3 +108,11 @@ test('site model: routes for Next, Astro, SvelteKit, Nuxt and static HTML', () =
   assert.deepEqual(routes({ 'package.json': '{"dependencies":{"nuxt":"3"}}', 'pages/index.vue': '<template><h1>x</h1></template>', 'pages/docs/intro.vue': '<template><h1>x</h1></template>' }), ['/', '/docs/intro']);
   assert.deepEqual(routes({ 'index.html': '<h1>x</h1>', 'about/index.html': '<h1>x</h1>', 'public/contact.html': '<h1>x</h1>', 'README.md': '# x' }), ['/', '/about', '/contact']);
 });
+
+test('site model: repo markdown needs frontmatter, a content folder or a docs generator', () => {
+  const routes = (files) => siteOf(files).pages.map((p) => p.route).sort();
+  assert.deepEqual(routes({ 'docs/notes.md': '# Notes', 'REPO-MAP.md': '# Map' }), []);
+  assert.deepEqual(routes({ 'docs/intro.md': '---\ntitle: Intro\n---\n# Intro' }), ['/intro']);
+  assert.deepEqual(routes({ 'docs/intro.md': '# Intro', 'mkdocs.yml': 'site_name: x' }), ['/intro']);
+  assert.deepEqual(routes({ 'content/post.md': '# Post' }), ['/post']);
+});

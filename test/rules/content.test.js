@@ -21,7 +21,7 @@ test('heading-order: skipped levels', () => {
 });
 
 test('heading-order: works in markdown', () => {
-  const f = findings('heading-order', { 'docs/a.md': '# A\n\n### C\n\ntext\n' });
+  const f = findings('heading-order', { 'content/a.md': '# A\n\n### C\n\ntext\n' });
   assert.equal(f.length, 1);
   assert.equal(f[0].line, 3);
 });
