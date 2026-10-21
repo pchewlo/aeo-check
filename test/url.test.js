@@ -1,6 +1,7 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { check } from '../src/index.js';
+import { CTA_TEXT } from '../src/rules/_util.js';
 
 const SHELL = '<!doctype html><html lang="en"><head><title>Acme</title><meta name="description" content="Acme analytics for product teams and their retention reports."></head><body><div id="root"></div><script src="/assets/index.js"></script></body></html>';
 
@@ -128,4 +129,9 @@ test('url mode: a contact form the agent can fill is reached, with no finding', 
   assert.equal(r.site.journeys[0].outcome, 'reached');
   assert.match(r.site.journeys[0].steps[0].notes[0], /form with 3 fields \(name, email, message\)/);
   assert.equal(r.findings.filter((x) => x.ruleId === 'cta-journey').length, 0);
+});
+
+test('CTA_TEXT: demo and call links with or without "a"', () => {
+  for (const t of ['Request Demo', 'Request a demo', 'Book demo', 'Book a free call', 'Get your demo', 'See a live demo', 'Schedule a consultation']) assert.ok(CTA_TEXT.test(t), t);
+  for (const t of ['Demo', 'Request', 'Book Notes', 'See all', 'Get in touch']) assert.ok(!CTA_TEXT.test(t), t);
 });
