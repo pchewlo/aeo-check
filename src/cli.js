@@ -115,6 +115,12 @@ function gitChanged(root, ref) {
   return [...names].map((n) => relative(absRoot, resolve(top, n)).split(sep).join('/')).filter((p) => !p.startsWith('..'));
 }
 
+function rebase(result, prefix) {
+  const fix = (f) => (f && !/^https?:\/\//.test(f) ? `${prefix}/${f}` : f);
+  const findings = result.findings.map((f) => ({ ...f, file: fix(f.file) }));
+  return { ...result, findings };
+}
+
 export async function main(argv, { stdout = process.stdout, stderr = process.stderr, env = process.env } = {}) {
   let opts;
   try { opts = parseArgs(argv); } catch (e) { stderr.write(`aeo-check: ${e.message}\n\n${HELP}`); return 2; }
@@ -162,17 +168,20 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
     return 2;
   }
 
+  // GitHub annotations and SARIF need paths relative to the repository root (the working directory)
+  const prefix = url ? '' : relative(process.cwd(), resolve(root)).split(sep).join('/');
+  const rebased = !prefix ? result : rebase(result, prefix);
   const color = opts.color !== undefined ? opts.color : !!(stdout.isTTY && !env.NO_COLOR) && !opts.output;
   const render = (fmt) => ({
     text: () => formatText(result, { color: fmt === 'text' && color, quiet: opts.quiet }),
     json: () => formatJson(result),
-    sarif: () => formatSarif(result),
-    github: () => formatGithub(result),
+    sarif: () => formatSarif(rebased),
+    github: () => formatGithub(rebased),
     markdown: () => formatMarkdown(result),
   }[fmt])();
   const report = render(opts.format);
   if (opts.output) writeFileSync(opts.output, report); else stdout.write(report);
-  if (opts.sarifOutput) writeFileSync(opts.sarifOutput, formatSarif(result));
+  if (opts.sarifOutput) writeFileSync(opts.sarifOutput, formatSarif(rebased));
   if (opts.markdownOutput) writeFileSync(opts.markdownOutput, formatMarkdown(result));
 
   const failing = result.findings.filter((f) => severityAtLeast(f.severity, failOn));

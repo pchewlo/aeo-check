@@ -54,14 +54,14 @@ test('cli: sarif output', async () => {
   assert.equal(run0.tool.driver.name, 'aeo-check');
   const r = run0.results.find((x) => x.ruleId === 'client-only-content');
   assert.equal(r.level, 'error');
-  assert.equal(r.locations[0].physicalLocation.artifactLocation.uri, 'app/pricing/page.tsx');
+  assert.equal(r.locations[0].physicalLocation.artifactLocation.uri, 'test/fixtures/next-app/app/pricing/page.tsx');
   assert.equal(r.locations[0].physicalLocation.region.startLine, 6);
   assert.equal(run0.tool.driver.rules[r.ruleIndex].id, 'client-only-content');
 });
 
 test('cli: github annotations and markdown summary', async () => {
   const gh = await run([NEXT, '--format', 'github']);
-  assert.match(gh.out, /^::error file=app\/pricing\/page\.tsx,line=6,title=aeo-check client-only-content::/m);
+  assert.match(gh.out, /^::error file=test\/fixtures\/next-app\/app\/pricing\/page\.tsx,line=6,title=aeo-check client-only-content::/m);
   const md = await run([NEXT, '--format', 'markdown']);
   assert.match(md.out, /### aeo-check: \d+\/100/);
   assert.match(md.out, /\| error \| `client-only-content` \|/);
