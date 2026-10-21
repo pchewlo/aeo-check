@@ -1,0 +1,112 @@
+name: aeo-check
+description: Check a website's code for answer engine optimisation (AEO) and annotate pull requests with the findings.
+author: pchewlo
+branding:
+  icon: search
+  color: blue
+
+inputs:
+  path:
+    description: Directory to check, relative to the repository root.
+    default: '.'
+  url:
+    description: Check this live URL instead of the repository (for example a preview deployment).
+    default: ''
+  fail-on:
+    description: Fail the job on findings at or above this severity (error, warn, info, none).
+    default: error
+  only-changed:
+    description: On pull requests, report only files the pull request changes.
+    default: 'true'
+  sarif:
+    description: Upload SARIF to GitHub code scanning (needs security-events write; private repos need GitHub Advanced Security).
+    default: 'true'
+  comment:
+    description: Post or update one pull request comment with the summary (needs pull-requests write).
+    default: 'true'
+  args:
+    description: Extra command-line arguments, for example "--rule thin-content=off --site-url https://example.com".
+    default: ''
+  node-version:
+    description: Node.js version to run with.
+    default: '20'
+
+outputs:
+  score:
+    description: Overall score out of 100.
+    value: ${{ steps.run.outputs.score }}
+  exit-code:
+    description: 0 when nothing reached fail-on, 1 when something did, 2 on a usage error.
+    value: ${{ steps.run.outputs.exit-code }}
+
+runs:
+  using: composite
+  steps:
+    - uses: actions/setup-node@v4
+      with:
+        node-version: ${{ inputs.node-version }}
+
+    - name: List files changed in the pull request
+      if: github.event_name == 'pull_request' && inputs.only-changed == 'true' && inputs.url == ''
+      shell: bash
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        gh api "repos/${{ github.repository }}/pulls/${{ github.event.pull_request.number }}/files" --paginate -q '.[] | select(.status != "removed") | .filename' > "$RUNNER_TEMP/aeo-changed.txt" || rm -f "$RUNNER_TEMP/aeo-changed.txt"
+
+    - name: Run aeo-check
+      id: run
+      shell: bash
+      run: |
+        set +e
+        target="${{ inputs.url }}"
+        [ -z "$target" ] && target="${{ inputs.path }}"
+        extra=()
+        [ -f "$RUNNER_TEMP/aeo-changed.txt" ] && extra+=(--changed-files "$RUNNER_TEMP/aeo-changed.txt")
+        node "$GITHUB_ACTION_PATH/bin/aeo-check.js" "$target" \
+          --format github \
+          --fail-on "${{ inputs.fail-on }}" \
+          --sarif-output "$RUNNER_TEMP/aeo-check.sarif" \
+          --markdown-output "$RUNNER_TEMP/aeo-check.md" \
+          "${extra[@]}" ${{ inputs.args }}
+        code=$?
+        echo "exit-code=$code" >> "$GITHUB_OUTPUT"
+        if [ -f "$RUNNER_TEMP/aeo-check.md" ]; then
+          cat "$RUNNER_TEMP/aeo-check.md" >> "$GITHUB_STEP_SUMMARY"
+          score=$(sed -n 's/^### aeo-check: \([0-9]*\)\/100.*/\1/p' "$RUNNER_TEMP/aeo-check.md")
+          echo "score=$score" >> "$GITHUB_OUTPUT"
+        fi
+        exit 0
+
+    - name: Upload SARIF to code scanning
+      if: always() && inputs.sarif == 'true' && hashFiles(format('{0}/aeo-check.sarif', runner.temp)) != ''
+      uses: github/codeql-action/upload-sarif@v3
+      continue-on-error: true
+      with:
+        sarif_file: ${{ runner.temp }}/aeo-check.sarif
+        category: aeo-check
+
+    - name: Comment on the pull request
+      if: always() && github.event_name == 'pull_request' && inputs.comment == 'true'
+      shell: bash
+      continue-on-error: true
+      env:
+        GH_TOKEN: ${{ github.token }}
+      run: |
+        body="$RUNNER_TEMP/aeo-check.md"
+        [ -f "$body" ] || exit 0
+        repo="${{ github.repository }}"
+        pr="${{ github.event.pull_request.number }}"
+        id=$(gh api "repos/$repo/issues/$pr/comments" --paginate -q '.[] | select(.body | startswith("<!-- aeo-check -->")) | .id' | head -n 1)
+        if [ -n "$id" ]; then
+          gh api -X PATCH "repos/$repo/issues/comments/$id" -F "body=@$body" > /dev/null
+        else
+          gh pr comment "$pr" --repo "$repo" --body-file "$body"
+        fi
+
+    - name: Fail on findings
+      if: steps.run.outputs.exit-code != '0'
+      shell: bash
+      run: |
+        echo "aeo-check found issues at or above '${{ inputs.fail-on }}' (exit ${{ steps.run.outputs.exit-code }})."
+        exit ${{ steps.run.outputs.exit-code }}
