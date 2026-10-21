@@ -98,10 +98,6 @@ export async function buildUrlSite(start, { maxPages = 1, probe = true, fetchImp
       if (seen.has(norm(r.url))) continue;
       seen.add(norm(r.url));
     }
-    const finalUrl = (r.url || url).split('#')[0];
-    // a redirect can land on a page already crawled (e.g. /uk/ -> /uk)
-    if (finalUrl !== url && seen.has(finalUrl)) continue;
-    seen.add(finalUrl);
     const page = pageFromHtml(r.text, r.url || url, r.headers);
     site.pages.push(page);
     for (const l of page.links) {
