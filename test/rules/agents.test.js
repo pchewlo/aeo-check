@@ -71,3 +71,9 @@ test('commerce-facts and offer-schema: a "Book Notes" nav link is not a Book but
   const buy = findings('commerce-facts', { 'index.html': html({ body: `<h1>Acme</h1><p>${para(200)}</p><a href="/checkout">Buy now</a>` }) });
   assert.equal(buy.length, 1);
 });
+
+test('template-placeholders and primary-cta: {{ }} in source files is template syntax, not a finding', () => {
+  const body = '<h1>Rooms</h1><p>From {{ price }} a night.</p><a href="{{ bookUrl }}">Book now</a>';
+  assert.deepEqual(findings('template-placeholders', { 'index.html': html({ body }) }), []);
+  assert.deepEqual(findings('primary-cta', { 'index.html': html({ body }) }), []);
+});

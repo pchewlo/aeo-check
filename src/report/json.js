@@ -7,6 +7,7 @@ export function formatJson(result) {
     overall: summary.overall,
     counts: summary.counts,
     site: { score: summary.site.score, findings: summary.site.findings },
+    ...(result.site && result.site.journeys ? { journeys: result.site.journeys } : {}),
     files: summary.files,
     pages: summary.pages.map((p) => ({ file: p.file, route: p.route, score: p.score, findings: p.findings })),
   }, null, 2) + '\n';
