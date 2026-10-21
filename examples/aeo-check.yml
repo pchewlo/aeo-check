@@ -1,0 +1,24 @@
+# Copy to .github/workflows/aeo-check.yml
+name: AEO check
+
+on:
+  pull_request:
+  push:
+    branches: [main]
+
+permissions:
+  contents: read
+  pull-requests: write    # PR summary comment
+  security-events: write  # SARIF upload to code scanning
+
+jobs:
+  aeo-check:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pchewlo/aeo-check@main
+        with:
+          path: .
+          fail-on: error
+          # args: --site-url https://example.com --rule thin-content=info

@@ -1,0 +1,20 @@
+# Check a deployed preview as crawlers see it (no JavaScript), after your deploy job.
+name: AEO check (preview)
+
+on:
+  deployment_status:
+
+permissions:
+  contents: read
+
+jobs:
+  aeo-check-live:
+    if: github.event.deployment_status.state == 'success'
+    runs-on: ubuntu-latest
+    steps:
+      - uses: pchewlo/aeo-check@main
+        with:
+          url: ${{ github.event.deployment_status.environment_url }}
+          args: --max-pages 20
+          sarif: 'false'
+          comment: 'false'
