@@ -9,7 +9,7 @@
   "files": ["bin", "src", "action.yml", "README.md", "LICENSE"],
   "engines": { "node": ">=18" },
   "scripts": {
-    "test": "node --test test/",
+    "test": "node --test",
     "check": "node bin/aeo-check.js"
   },
   "optionalDependencies": {
