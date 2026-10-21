@@ -16,6 +16,7 @@ const emptyModel = () => ({
   head: {}, blocks: [], headings: [], images: [], links: [], clickNav: [], tables: [], lists: 0,
   jsonLd: [], times: [], text: '', mainText: '', wordCount: 0, staticWordCount: 0, scripts: [], emptyRoots: [],
   nosnippetEls: [], seoProps: [], hasMain: false, exprCount: 0, metaRefresh: null, bylineHints: [],
+  controls: [], overlays: [],
 });
 
 function headFromElements(doc, model) {
@@ -195,6 +196,63 @@ function analyseElements(doc, model) {
   }
 }
 
+const OVERLAY = /(^|[\s_-])(modal|popup|pop-up|interstitial|overlay|lightbox|newsletter-popup|exit-intent)([\s_-]|$)/i;
+
+function isHidden(el) {
+  for (let p = el; p && p.tag !== '#root'; p = p.parent) {
+    if (hasAttr(p, 'hidden') || attr(p, 'aria-hidden') === 'true') return true;
+    const st = (attr(p, 'style') || '').replace(/\s+/g, '');
+    if (/display:none|visibility:hidden/i.test(st)) return true;
+    if (/(^|\s)(hidden|sr-only|visually-hidden|d-none)(\s|$)/.test(attr(p, 'class') || '')) return true;
+  }
+  return false;
+}
+
+/** Accessible name of a link or button: aria-label, text, or the alt/title of an image inside it. */
+export function accessibleName(el) {
+  for (const k of ['aria-label', 'aria-labelledby', 'title']) {
+    const a = el.attrs[k];
+    if (a && (a.dynamic || String(a.value).trim())) return { name: a.dynamic ? '(dynamic)' : String(a.value).trim(), via: k };
+  }
+  const text = clean(textOf(el));
+  if (text) return { name: text, via: 'text' };
+  for (const node of walk(el)) {
+    if (node.type !== 'el' || node === el) continue;
+    if ((node.tag === 'img' || IMAGE_COMPONENTS.has(node.name)) && node.attrs.alt && (node.attrs.alt.dynamic || node.attrs.alt.value.trim())) return { name: node.attrs.alt.dynamic ? '(dynamic)' : node.attrs.alt.value.trim(), via: 'img alt' };
+    if (node.tag === 'svg' && (attr(node, 'aria-label') || node.children.some((c) => c.type === 'el' && c.tag === 'title'))) return { name: attr(node, 'aria-label') || 'svg title', via: 'svg' };
+    if (node.attrs && node.attrs['aria-label'] && String(node.attrs['aria-label'].value).trim()) return { name: node.attrs['aria-label'].value, via: 'aria-label' };
+  }
+  if (hasDynamicChildren(el)) return { name: '(dynamic)', via: 'expression' };
+  if (el.component && !LINK_COMPONENTS.has(el.name) && !el.children.length) return { name: '(component)', via: 'component' };
+  return null;
+}
+
+function analyseControls(doc, model) {
+  const firstH1 = doc.elements.findIndex((e) => e.tag === 'h1');
+  doc.elements.forEach((el, idx) => {
+    if (ancestors(el).some((a) => a.tag === 'svg' || a.tag === 'head')) return;
+    const isLink = el.tag === 'a' || LINK_COMPONENTS.has(el.name);
+    const isButton = el.tag === 'button' || attr(el, 'role') === 'button' || (el.tag === 'input' && /^(submit|button)$/i.test(attr(el, 'type') || ''));
+    const clickable = !isLink && !isButton && hasAttr(el, 'onclick') && !el.component;
+    if (isLink || isButton || clickable) {
+      const name = el.tag === 'input' ? (attr(el, 'value') ? { name: attr(el, 'value'), via: 'value' } : accessibleName(el)) : accessibleName(el);
+      const h = el.attrs.href || el.attrs.to;
+      model.controls.push({
+        tag: el.name, kind: isLink ? 'link' : isButton ? 'button' : 'clickable', line: el.line, name, spread: el.spread,
+        href: h ? (h.dynamic ? null : h.value) : undefined, hasHref: !!h, onClick: !!el.attrs.onclick,
+        hint: `${attr(el, 'class') || ''} ${attr(el, 'id') || ''} ${attr(el, 'data-testid') || ''}`.trim(),
+      });
+    }
+    const hint = `${attr(el, 'class') || ''} ${attr(el, 'id') || ''}`;
+    const modal = attr(el, 'role') === 'dialog' || attr(el, 'role') === 'alertdialog' || attr(el, 'aria-modal') === 'true' || (el.tag === 'dialog' && hasAttr(el, 'open')) || OVERLAY.test(hint);
+    if (modal && !el.component && el.tag !== 'dialog' || (el.tag === 'dialog' && hasAttr(el, 'open'))) {
+      if (!isHidden(el) && !model.overlays.some((o) => ancestors(el).some((a) => a.line === o.line && a.tag === o.tag))) {
+        model.overlays.push({ tag: el.name, line: el.line, hint: hint.trim() || attr(el, 'role') || el.tag, beforeH1: firstH1 < 0 || idx < firstH1 });
+      }
+    }
+  });
+}
+
 function finish(model) {
   model.headings = model.blocks.filter((b) => b.kind === 'heading');
   model.tables = model.blocks.filter((b) => b.kind === 'table');
@@ -206,6 +264,7 @@ export function analyseMarkup(doc) {
   const model = emptyModel();
   headFromElements(doc, model);
   analyseElements(doc, model);
+  analyseControls(doc, model);
   // choose content root: <main>/<article> if present, else <body>, else whole doc
   const all = doc.elements;
   const main = all.find((e) => e.tag === 'main') || all.find((e) => e.tag === 'article') || all.find((e) => attr(e, 'role') === 'main');
@@ -236,6 +295,8 @@ export function analyseMarkdown(body, bodyLine, { mdx = false } = {}) {
     model.images.push(...sub.images);
     model.links.push(...sub.links);
     model.clickNav.push(...sub.clickNav);
+    model.controls.push(...sub.controls);
+    model.overlays.push(...sub.overlays);
     model.jsonLd.push(...sub.jsonLd);
     model.times.push(...sub.times);
     model.bylineHints.push(...sub.bylineHints);
