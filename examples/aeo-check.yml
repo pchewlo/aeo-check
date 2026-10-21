@@ -17,7 +17,7 @@ jobs:
     steps:
       - uses: actions/checkout@v4
 
-      - uses: pchewlo/aeo-check@main
+      - uses: pchewlo/aeo-check@v0
         with:
           path: .
           fail-on: error
