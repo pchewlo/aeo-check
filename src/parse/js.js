@@ -207,11 +207,25 @@ function bodiesOf(src, callRe) {
 
 const FETCHISH = /\bfetch\s*\(|\baxios\b|\bsupabase\b|\.from\(\s*['"]|\bgetDocs?\(|\bfirestore\b|\bgql\b|\bgraphql\b|\$fetch\(|\buseFetch\b|\bky\(|\bXMLHttpRequest\b/;
 
+/** Does the file start with a directive such as 'use client' (after comments)? */
+export function hasDirective(src, name) {
+  let i = 0;
+  const n = Math.min(src.length, 20000);
+  while (i < n) {
+    while (i < n && /\s/.test(src[i])) i++;
+    if (src.startsWith('//', i)) { const e = src.indexOf('\n', i); i = e < 0 ? n : e + 1; continue; }
+    if (src.startsWith('/*', i)) { const e = src.indexOf('*/', i + 2); i = e < 0 ? n : e + 2; continue; }
+    break;
+  }
+  const m = /^(['"])([^'"\n]*)\1/.exec(src.slice(i, i + 40));
+  return !!m && m[2] === name;
+}
+
 /** Signals that content is produced on the client only. */
 export function clientSignals(src) {
   const L = lineIndex(src);
   const s = { useClient: false, effectFetch: [], clientDataHooks: [], ssrFalse: [], innerHTML: [], spaMount: [], hashRouting: [], clickNav: [], serverData: false };
-  s.useClient = /^(?:\s*(?:\/\/[^\n]*|\/\*[\s\S]*?\*\/)\s*)*\s*(['"])use client\1/.test(src);
+  s.useClient = hasDirective(src, 'use client');
   for (const { index, body } of bodiesOf(src, /\buse(?:Layout)?Effect\s*\(|\bonMounted\s*\(|\bonMount\s*\(|\$effect\s*\(/)) {
     if (FETCHISH.test(body)) s.effectFetch.push(L(index));
   }

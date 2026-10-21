@@ -116,3 +116,12 @@ test('site model: repo markdown needs frontmatter, a content folder or a docs ge
   assert.deepEqual(routes({ 'docs/intro.md': '# Intro', 'mkdocs.yml': 'site_name: x' }), ['/intro']);
   assert.deepEqual(routes({ 'content/post.md': '# Post' }), ['/post']);
 });
+
+test('client signals stay fast on files with long comment headers', () => {
+  const src = '// note\n//\n'.repeat(400) + "module.exports = { a: 1 }\n";
+  const t = Date.now();
+  const s = clientSignals(src);
+  assert.equal(s.useClient, false);
+  assert.ok(Date.now() - t < 200, `took ${Date.now() - t}ms`);
+  assert.equal(clientSignals("/* header */\n// more\n'use client'\nexport default 1").useClient, true);
+});
