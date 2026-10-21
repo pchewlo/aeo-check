@@ -21,7 +21,7 @@ export default {
     if (c.inherited && page.route !== '/' && !/^\.\/?$/.test(href)) {
       return [{ line: 1, severity: 'error', message: `Canonical "${href}" is inherited from ${c.from}, so this page declares another page as its canonical.` }];
     }
-    if (!/^https?:\/\//.test(href)) return [{ line: c.line, severity: 'info', message: `Canonical URL is relative (${href}); use an absolute URL.` }];
+    if (!/^https?:\/\//.test(href) && !page.head.metadataBase) return [{ line: c.line, severity: 'info', message: `Canonical URL is relative (${href}); use an absolute URL.` }];
     if (page.kind !== 'url' && !page.isDynamicRoute && ctx.site.baseUrl !== undefined) {
       const target = normalisePath(href, '/', ctx.site.baseUrl);
       if (target && target !== page.route && !page.route.includes('[') && !(page.route === '/' && target === '')) {

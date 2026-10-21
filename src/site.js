@@ -335,8 +335,8 @@ export function buildSite(files, config = {}) {
       let template = null;
       for (const l of chain) {
         const lh = { ...l.head };
-        if (lh.title) lh.title = { ...lh.title, inherited: true, from: l.file };
-        if (lh.description) lh.description = { ...lh.description, inherited: true, from: l.file };
+        if (lh.title) lh.title = { ...lh.title, inherited: true, from: l.file, line: 1 };
+        if (lh.description) lh.description = { ...lh.description, inherited: true, from: l.file, line: 1 };
         if (lh.canonical) lh.canonical = { ...lh.canonical, inherited: true, from: l.file };
         if (lh.robots) lh.robots = { ...lh.robots, from: l.file };
         head = mergeHead(head, lh);

@@ -1,4 +1,4 @@
-import { isIndexable, hasFullText } from './_util.js';
+import { isIndexable, hasFullText, plural } from './_util.js';
 
 export default {
   id: 'thin-content',
@@ -13,7 +13,10 @@ export default {
     if (!isIndexable(page) || !hasFullText(page) || page.metaRefresh) return [];
     const min = page.isArticle ? 300 : 150;
     if (page.wordCount >= min) return [];
-    if (page.kind === 'html' && page.emptyRoots.length) return []; // reported by client-only-content
-    return [{ line: 1, message: `${page.wordCount} words of main content (${page.isArticle ? 'articles' : 'pages'} under ${min} words are rarely cited).` }];
+    // content injected on the client is reported by client-only-content instead
+    if (page.kind === 'html' && page.emptyRoots.length) return [];
+    const s = page.signals || {};
+    if ((s.effectFetch && s.effectFetch.length) || (s.clientDataHooks && s.clientDataHooks.length)) return [];
+    return [{ line: 1, message: `${plural(page.wordCount, 'word')} of main content (${page.isArticle ? 'articles' : 'pages'} under ${min} words are rarely cited).` }];
   },
 };
