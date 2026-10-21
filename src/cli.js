@@ -1,5 +1,5 @@
 // Command-line interface.
-import { existsSync, statSync, writeFileSync, realpathSync } from 'node:fs';
+import { existsSync, statSync, writeFileSync, realpathSync, readFileSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { check, VERSION, RULES } from './index.js';
@@ -32,6 +32,7 @@ Options
   --markdown-output <f> also write a markdown summary to a file
   --fail-on <sev>      exit 1 on findings at or above: error (default), warn, info, none
   --since <ref>        report only files changed since this git ref
+  --changed-files <f>  report only the paths listed in this file (one per line)
   --ignore <glob>      skip matching paths (repeatable)
   --rule <id=sev>      set a rule to error, warn, info or off (repeatable)
   --only <ids>         run only these rules (comma-separated)
@@ -66,6 +67,7 @@ export function parseArgs(argv) {
       case '--markdown-output': opts.markdownOutput = val(a); break;
       case '--fail-on': opts.failOn = val(a); break;
       case '--since': opts.since = val(a); break;
+      case '--changed-files': opts.changedFiles = val(a); break;
       case '--ignore': opts.ignore.push(val(a)); break;
       case '--rule': {
         const v = val(a);
@@ -137,6 +139,12 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
   if (opts.only) config.only = opts.only;
   if (opts.siteUrl) config.siteUrl = opts.siteUrl;
   const failOn = opts.failOn || config.failOn || 'error';
+  if (opts.changedFiles && !url) {
+    let listed;
+    try { listed = readFileSync(opts.changedFiles, 'utf8').split(/\r?\n/).map((l) => l.trim()).filter(Boolean); } catch (e) { stderr.write(`aeo-check: cannot read ${opts.changedFiles}\n`); return 2; }
+    onlyFiles = onlyFiles.concat(listed.map((f) => relative(resolve(root), resolve(f)).split(sep).join('/')));
+    if (!onlyFiles.length) onlyFiles = ['\0none'];
+  }
   if (opts.since && !url) {
     try { onlyFiles = onlyFiles.concat(gitChanged(root, opts.since)); } catch (e) { stderr.write(`aeo-check: ${e.message}\n`); return 2; }
     if (!onlyFiles.length) onlyFiles = ['\0none'];

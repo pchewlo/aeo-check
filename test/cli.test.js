@@ -105,6 +105,20 @@ test('cli: --since reports only changed files, and config files are read', async
   } finally { rmSync(dir, { recursive: true, force: true }); }
 });
 
+test('cli: --changed-files limits the report, and an empty list reports nothing', async () => {
+  const dir = mkdtempSync(join(tmpdir(), 'aeo-'));
+  try {
+    writeFileSync(join(dir, 'list.txt'), `${join(NEXT, 'app/pricing/page.tsx')}\n`);
+    const r = await run([NEXT, '--changed-files', join(dir, 'list.txt'), '--format', 'json']);
+    const j = JSON.parse(r.out);
+    assert.deepEqual(j.pages.map((p) => p.route), ['/pricing']);
+    writeFileSync(join(dir, 'empty.txt'), '');
+    const e = await run([NEXT, '--changed-files', join(dir, 'empty.txt'), '--format', 'json']);
+    assert.equal(e.code, 0);
+    assert.equal(JSON.parse(e.out).counts.error, 0);
+  } finally { rmSync(dir, { recursive: true, force: true }); }
+});
+
 test('cli: help, version, rule list and bad options', async () => {
   assert.match((await run(['--help'])).out, /Usage/);
   assert.match((await run(['--version'])).out, /^\d+\.\d+\.\d+/);
