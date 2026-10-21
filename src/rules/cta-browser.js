@@ -1,6 +1,6 @@
 import { host } from './cta-journey.js';
 
-const SEVERITY = { stuck: 'error', broken: 'error', handoff: 'info' };
+const SEVERITY = { stuck: 'error', broken: 'error', unconfirmed: 'warn', handoff: 'info' };
 
 export default {
   id: 'cta-browser',
@@ -22,7 +22,7 @@ export default {
       let sev = SEVERITY[w.outcome];
       if (w.outcome === 'reached') { if (!w.friction.length) continue; sev = 'warn'; }
       if (!sev) continue;
-      const verb = { reached: 'reached the final button, with friction', stuck: 'got stuck', broken: 'failed', handoff: 'reached a step only the user can finish' }[w.outcome];
+      const verb = { reached: 'reached the final button, with friction', stuck: 'got stuck', broken: 'failed', unconfirmed: 'filled every field, but the final button stayed disabled', handoff: 'reached a step only the user can finish' }[w.outcome];
       out.push({ file: start.file, line: 1, severity: sev, message: `In a browser, "${w.name}"${where} ${verb}${path ? `: ${path}` : ''}. ${w.stop || ''}${friction}`.trim() });
     }
     for (const d of (site.browser.ctaDiff || []).slice(0, 3)) {

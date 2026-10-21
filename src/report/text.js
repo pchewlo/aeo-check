@@ -22,7 +22,7 @@ export function formatText(result, { color = false, quiet = false } = {}) {
   }
 
   if (site.browser) {
-    const LABEL = { reached: ['green', 'reached'], handoff: ['info', 'user finishes'], stuck: ['error', 'stuck'], broken: ['error', 'broken'] };
+    const LABEL = { reached: ['green', 'reached'], handoff: ['info', 'user finishes'], unconfirmed: ['warn', 'unconfirmed'], stuck: ['error', 'stuck'], broken: ['error', 'broken'] };
     out.push(c('bold', 'Calls to action, walked in a browser (stopped before the final submit; nothing was sent)'));
     if (!site.browser.journeys.length) out.push(c('dim', '  No call to action found on the rendered start page.'));
     for (const w of site.browser.journeys) {

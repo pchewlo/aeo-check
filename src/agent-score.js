@@ -2,7 +2,7 @@
 // Reported next to the AEO score rather than averaged into it, so one blocked CTA is not
 // diluted by fifty content rules.
 const FETCH = { reached: 100, handoff: 90, 'needs-browser': 50, 'dead-end': 25, broken: 0 };
-const BROWSER = { reached: 100, handoff: 90, stuck: 30, broken: 0 };
+const BROWSER = { reached: 100, handoff: 90, unconfirmed: 70, stuck: 30, broken: 0 };
 const FRICTION_COST = 10;
 const MIN_REACHED = 60;
 
@@ -16,11 +16,13 @@ const avg = (xs) => xs.reduce((a, x) => a + x, 0) / xs.length;
 export function agentScore(site) {
   const journeys = site.journeys || [];
   const walks = (site.browser && site.browser.journeys) || [];
-  const names = [...new Set([...journeys.map((j) => j.name), ...walks.map((w) => w.name)].map((n) => n.toLowerCase()))];
+  // a walk down a form branch (e.g. "I'm a clinician" -> sign-up) counts towards the CTA it came from
+  const ctaOf = (w) => w.cta || w.name;
+  const names = [...new Set([...journeys.map((j) => j.name), ...walks.map(ctaOf)].map((n) => n.toLowerCase()))];
   if (!names.length) return null;
   const ctas = names.map((key) => {
     const j = journeys.find((x) => x.name.toLowerCase() === key);
-    const ws = walks.filter((x) => x.name.toLowerCase() === key);
+    const ws = walks.filter((x) => ctaOf(x).toLowerCase() === key);
     const f = j ? FETCH[j.outcome] ?? 0 : null;
     const b = ws.length ? avg(ws.map(browserPoints)) : null;
     const score = f === null ? b : b === null ? f : 0.4 * f + 0.6 * b;
