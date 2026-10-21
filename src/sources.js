@@ -43,7 +43,7 @@ export const SOURCES = {
   'schema-org': { label: 'schema.org vocabulary', url: 'https://schema.org/docs/schemas.html' },
   'llmstxt': { label: 'llms.txt specification', url: 'https://llmstxt.org/' },
   'vercel-ai-crawlers': { label: 'Vercel: The rise of the AI crawler (Dec 2024): none of the major AI crawlers render JavaScript', url: 'https://vercel.com/blog/the-rise-of-the-ai-crawler' },
-  'cloudflare-ai-block': { label: 'Cloudflare: AI crawlers blocked by default for new domains (Jul 2025)', url: 'https://blog.cloudflare.com/content-independence-day-no-ai-crawl-without-compensation/' },
+  'cloudflare-ai-block': { label: 'Cloudflare: changing the default to block AI crawlers (1 July 2025)', url: 'https://blog.cloudflare.com/content-independence-day-no-ai-crawl-without-compensation/' },
   'w3c-names': { label: 'W3C ARIA Authoring Practices: providing accessible names', url: 'https://www.w3.org/WAI/ARIA/apg/practices/names-and-descriptions/' },
   'google-merchant': { label: 'Google: merchant listing (Product, Offer) structured data', url: 'https://developers.google.com/search/docs/appearance/structured-data/merchant-listing' },
   'schema-offer': { label: 'schema.org Offer', url: 'https://schema.org/Offer' },

@@ -4,7 +4,7 @@ export default {
   scope: 'site',
   category: 'crawl',
   title: 'Firewall and CDN let AI crawlers through (URL mode)',
-  rationale: 'CDNs and firewalls can block AI crawlers before robots.txt is read; Cloudflare blocks them by default on new domains since July 2025. If the AI user agents get a 403 or a challenge page, the site cannot be cited.',
+  rationale: 'CDNs and firewalls can block AI crawlers before robots.txt is read; Cloudflare changed its default to block AI crawlers on 1 July 2025. If the AI user agents get a 403 or a challenge page, the site cannot be cited.',
   sources: ['cloudflare-ai-block', 'openai-bots', 'anthropic-bots', 'perplexity-bots'],
   fix: 'In your CDN or WAF, allow verified AI search crawlers (OAI-SearchBot, ChatGPT-User, Claude-SearchBot, Claude-User, PerplexityBot). In Cloudflare, check Security > Bots and the AI Crawl Control settings.',
   check(site) {
