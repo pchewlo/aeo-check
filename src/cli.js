@@ -1,5 +1,5 @@
 // Command-line interface.
-import { existsSync, statSync, writeFileSync } from 'node:fs';
+import { existsSync, statSync, writeFileSync, realpathSync } from 'node:fs';
 import { resolve, relative, sep } from 'node:path';
 import { execFileSync } from 'node:child_process';
 import { check, VERSION, RULES } from './index.js';
@@ -109,7 +109,7 @@ function gitChanged(root, ref) {
     try { run(args).split('\n').filter(Boolean).forEach((n) => names.add(n)); } catch (e) { if (args[2] && args[2].includes('...')) throw new Error(`git diff against ${ref} failed: ${e.stderr ? e.stderr.toString().trim() : e.message}`); }
   }
   // paths from git are relative to the repo top; convert to relative-to-root
-  const absRoot = resolve(root);
+  const absRoot = realpathSync(resolve(root));
   return [...names].map((n) => relative(absRoot, resolve(top, n)).split(sep).join('/')).filter((p) => !p.startsWith('..'));
 }
 
