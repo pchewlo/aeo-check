@@ -42,13 +42,37 @@ aeo-check --list-rules
 | `--only <id,id>` | Run only these rules |
 | `--ignore <glob>` | Skip paths (repeatable) |
 | `--site-url <url>` | Production URL, used for canonical and internal-link checks |
-| `--max-pages <n>`, `--no-probe` | URL mode: pages to crawl; skip the AI user-agent probe |
+| `--max-pages <n>`, `--no-probe` | URL mode: pages to crawl; skip the AI user-agent probe and the call-to-action journey |
 | `--ai`, `--ai-model <id>`, `--ai-max-pages <n>` | Add the judgement rules (see below) |
 | `--quiet`, `--no-color` | Shorter text output |
 
 Passing file paths after the directory (`aeo-check . src/app/page.tsx`) checks the whole site and reports only those files. Exit codes: 0 clean, 1 findings at or above `--fail-on`, 2 usage error.
 
 Each finding has a rule id, severity, location, the reason it matters for AI answers and a concrete fix. Pages get a score out of 100 (an error costs 12, a warning 4, an info 1, with each rule counted at most twice per page); the overall score is 60% the page average and 40% the site-level score.
+
+### Calls to action
+
+In URL mode aeo-check finds the start page's main calls to action (sign up, start a trial, book a demo, buy, checkout), follows each one as ChatGPT-User without running JavaScript, for up to four pages and across domains, and reports where it ends:
+
+| Outcome | Meaning | Severity |
+| --- | --- | --- |
+| reached | A form the agent can fill in for the user, or a mailto link | none |
+| user finishes | Sign-in by emailed link or OAuth, a password form, a card form or a phone number: the agent can bring the user there but not finish | info |
+| needs browser | The page (often a Calendly, HubSpot or Stripe page) is empty without JavaScript | warn |
+| dead end | No form and no next step | warn |
+| broken | Unrendered or missing href, HTTP error or bot challenge | error |
+
+```
+Calls to action, followed as an agent that does not run JavaScript
+  broken        "Book a demo" 3 links
+                The href is the unrendered template "{{ demoUrl }}", so there is nowhere to go.
+  user finishes "Start 14 days free" 3 links
+                1. https://growth.example.com/signup  200  4 prices shown (£29, £49, £99, ...); next: "Start free trial"
+                2. https://growth.example.com/signin?next=%2Fsignup  200  sign-in by emailed link or Google
+                The user has to finish: the link goes to their inbox, or it needs their Google account.
+```
+
+It also notes when several choices (plans, rooms) share one URL, so the choice is lost on the way. JSON output carries the full path under `journeys`.
 
 ### Config
 
@@ -120,6 +144,7 @@ Routes are worked out from Next.js (app and pages routers, including `metadata` 
 |  | `img-alt` | warn | Images have alt text |
 | Agent readiness | `accessible-names` | warn | Links and buttons have an accessible name |
 |  | `agent-paths` | warn | Agents may reach product, booking and checkout paths |
+|  | `cta-journey` | error | An agent can follow the main call to action to a form, sign-in or payment (URL mode) |
 |  | `commerce-facts` | warn | Prices and key policies are plain text in the HTML |
 |  | `load-interstitials` | warn | No pop-ups or modals in front of the main content |
 |  | `offer-schema` | warn | Commerce pages declare Offer data an agent can read |

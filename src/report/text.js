@@ -8,6 +8,19 @@ export function formatText(result, { color = false, quiet = false } = {}) {
   out.push(c('dim', `${site.pages.length} page${site.pages.length === 1 ? '' : 's'}, ${site.components.length} components, ${site.scripts.length} scripts${site.framework ? `, framework: ${site.framework.all.join('+')}` : ''}`));
   out.push('');
 
+  if (site.journeys) {
+    const LABEL = { reached: ['green', 'reached'], handoff: ['info', 'user finishes'], 'needs-browser': ['warn', 'needs browser'], 'dead-end': ['warn', 'dead end'], broken: ['error', 'broken'] };
+    out.push(c('bold', 'Calls to action, followed as an agent that does not run JavaScript'));
+    if (!site.journeys.length) out.push(c('dim', '  No primary call to action (sign up, book, buy, checkout) found on the start page.'));
+    for (const j of site.journeys) {
+      const [col, label] = LABEL[j.outcome] || ['dim', j.outcome];
+      out.push(`  ${c(col, label.padEnd(13))} ${c('bold', `"${j.name}"`)}${j.count > 1 ? c('dim', ` ${j.count} links`) : ''}`);
+      j.steps.forEach((s, i) => out.push(`  ${''.padEnd(13)} ${i + 1}. ${s.finalUrl || s.url}  ${c('dim', String(s.status))}${s.notes.length ? `  ${s.notes.join('; ')}` : ''}`));
+      if (j.stop) out.push(`  ${''.padEnd(13)} ${c('dim', j.stop)}`);
+    }
+    out.push('');
+  }
+
   const line = (f) => {
     const loc = f.line ? `${f.file}:${f.line}` : f.file;
     const sev = c(f.severity, f.severity.padEnd(5));
