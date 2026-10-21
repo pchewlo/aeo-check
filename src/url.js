@@ -65,9 +65,10 @@ export async function buildUrlSite(start, { maxPages = 1, probe = true, fetchImp
     site.llmsContentType = (llms.headers.get('content-type') || '').split(';')[0];
     if (!/^\s*<(!doctype|html)/i.test(llms.text)) site.llms = { path: origin + '/llms.txt', content: llms.text, parsed: parseLlmsTxt(llms.text) };
   }
-  const smUrls = site.robots ? site.robots.parsed.sitemaps.map((s) => s.url) : [];
-  if (!smUrls.length) smUrls.push(origin + '/sitemap.xml');
-  for (const u of smUrls.slice(0, 2)) {
+  // Sitemap lines must be absolute URLs; try the listed ones, then /sitemap.xml
+  const smUrls = (site.robots ? site.robots.parsed.sitemaps.map((s) => s.url) : []).filter((u) => /^https?:\/\//i.test(u)).slice(0, 2);
+  if (!smUrls.includes(origin + '/sitemap.xml')) smUrls.push(origin + '/sitemap.xml');
+  for (const u of smUrls) {
     const r = await get(u, { fetchImpl });
     if (r.status === 200 && /<(urlset|sitemapindex)[\s>]/i.test(r.text)) {
       const parsed = parseSitemap(r.text);

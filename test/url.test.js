@@ -135,3 +135,18 @@ test('CTA_TEXT: demo and call links with or without "a"', () => {
   for (const t of ['Request Demo', 'Request a demo', 'Book demo', 'Book a free call', 'Get your demo', 'See a live demo', 'Schedule a consultation']) assert.ok(CTA_TEXT.test(t), t);
   for (const t of ['Demo', 'Request', 'Book Notes', 'See all', 'Get in touch']) assert.ok(!CTA_TEXT.test(t), t);
 });
+
+test('url mode: robots.txt Sitemap lines without a scheme are flagged, and /sitemap.xml is still found', async () => {
+  const fetchImpl = fakeFetch({
+    'https://acme.test/': { body: '<!doctype html><html lang="en"><head><title>Acme analytics</title></head><body><main><h1>Acme</h1></main></body></html>' },
+    'https://acme.test/robots.txt': { body: 'User-agent: *\nDisallow: /admin/\nSitemap: acme.test/sitemap.xml\n', headers: { 'content-type': 'text/plain' } },
+    'https://acme.test/sitemap.xml': { body: '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://acme.test/</loc><lastmod>2026-10-01</lastmod></url></urlset>', headers: { 'content-type': 'application/xml' } },
+  });
+  const r = await check({ url: 'https://acme.test/', probe: false, fetchImpl });
+  assert.ok(!r.findings.some((f) => f.ruleId === 'sitemap-present'));
+  const f = r.findings.filter((x) => x.ruleId === 'robots-txt');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].severity, 'warn');
+  assert.equal(f[0].line, 3);
+  assert.match(f[0].message, /"acme\.test\/sitemap\.xml" is not an absolute URL/);
+});
