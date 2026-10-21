@@ -84,7 +84,7 @@ export function robotsFromNextRoute(src) {
 }
 
 function listValues(obj, key) {
-  const re = new RegExp(`${key}\\s*:\\s*(\\[[^\\]]*\\]|(['"\`])[^'"\`]*\\2)`);
+  const re = new RegExp(`(?<![A-Za-z])${key}\\s*:\\s*(\\[[^\\]]*\\]|(['"\`])[^'"\`]*\\2)`);
   const m = re.exec(obj);
   if (!m) return [];
   const v = m[1];
