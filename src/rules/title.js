@@ -16,9 +16,9 @@ export default {
     if (t.dynamic) return [];
     const text = (t.text || '').trim();
     if (!text) return [{ line: t.line, message: 'The <title> is empty.' }];
+    if (/^(home|untitled|document|index|page|welcome|react app|vite app|create next app|my app)$/i.test(text)) return [{ line: t.line, severity: 'warn', message: `Title "${text}" is a placeholder.` }];
     if (text.length < 10) return [{ line: t.line, severity: 'warn', message: `Title "${text}" is too short to describe the page.` }];
     if (text.length > 70) return [{ line: t.line, severity: 'info', message: `Title is ${text.length} characters; results usually show about 60.` }];
-    if (/^(home|untitled|document|index|page|welcome|react app|vite app|create next app|my app)$/i.test(text)) return [{ line: t.line, severity: 'warn', message: `Title "${text}" is a placeholder.` }];
     return [];
   },
 };
