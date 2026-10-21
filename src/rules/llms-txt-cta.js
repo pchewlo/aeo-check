@@ -54,10 +54,11 @@ export default {
     for (const j of site.journeys) {
       const dests = new Set();
       const add = (u) => { const k = u && sameTarget(u); if (k) dests.add(k); };
+      // the browser's destination first: it is where the button really goes, and the one the message names
+      for (const w of walks.filter((x) => x.name.toLowerCase() === j.name.toLowerCase())) { add(w.href); for (const s of w.steps) add(s.url); }
       try { add(new URL(j.href, start.file).href); } catch {}
       for (const s of j.steps) { add(s.url); add(s.finalUrl); }
       if (j.form) add(j.form.url);
-      for (const w of walks.filter((x) => x.name.toLowerCase() === j.name.toLowerCase())) { add(w.href); for (const s of w.steps) add(s.url); }
       if (!dests.size) continue;
       for (const l of links) {
         if (goalOf(l) !== j.goal) continue;
