@@ -3,7 +3,7 @@ export default {
   severity: 'error',
   scope: 'site',
   category: 'crawl',
-  title: 'Routes use real URLs, not #fragments',
+  title: 'Routes use real URL paths',
   rationale: 'Crawlers ignore everything after "#", so hash-routed views (#/pricing, #about) all collapse into one URL. Only the empty shell gets fetched and none of the views can be cited or linked from an answer.',
   sources: ['google-js-seo', 'google-links', 'vercel-ai-crawlers'],
   fix: 'Switch to path-based routing with the History API (BrowserRouter, createWebHistory, Next.js/Astro file routes) and serve each route as its own URL with server-rendered HTML.',
