@@ -13,6 +13,10 @@ export default {
       return [{ file: site.mode === 'url' ? site.origin + '/robots.txt' : 'robots.txt', line: 0, message: 'No robots.txt found.' }];
     }
     if (!site.robots.parsed.sitemaps.length) return [{ file: site.robots.path, line: 1, message: 'robots.txt has no "Sitemap:" line.' }];
-    return [];
+    // RFC 9309 and Google need a full URL; crawlers ignore "Sitemap: example.com/sitemap.xml"
+    return site.robots.parsed.sitemaps.filter((s) => !/^https?:\/\//i.test(s.url)).map((s) => ({
+      file: site.robots.path, line: s.line, severity: 'warn',
+      message: `Sitemap line "${s.url}" is not an absolute URL, so crawlers ignore it. Write it as https://${s.url.replace(/^\/+/, '')}.`,
+    }));
   },
 };

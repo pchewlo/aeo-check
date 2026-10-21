@@ -15,6 +15,8 @@
   "optionalDependencies": {
     "@anthropic-ai/sdk": "^0.137.0"
   },
+  "peerDependencies": { "playwright": ">=1.40" },
+  "peerDependenciesMeta": { "playwright": { "optional": true } },
   "keywords": ["aeo", "geo", "seo", "llms.txt", "ai-search", "chatgpt", "claude", "perplexity", "lint", "github-action"],
   "repository": { "type": "git", "url": "git+https://github.com/pchewlo/aeo-check.git" },
   "homepage": "https://github.com/pchewlo/aeo-check",

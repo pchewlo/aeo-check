@@ -40,6 +40,8 @@ Options
   --config <file>      config file (default .aeo-check.json)
   --max-pages <n>      URL mode: pages to crawl from the start URL (default 1)
   --no-probe           URL mode: skip the AI user-agent firewall probe
+  --browser            URL mode: also follow the main calls to action in headless
+                       Chromium up to the final submit (needs Playwright; sends nothing)
   --ai                 add judgement checks with Claude (needs ANTHROPIC_API_KEY)
   --ai-model <id>      model for --ai (default ${DEFAULT_MODEL})
   --ai-max-pages <n>   pages to send for --ai (default 10)
@@ -81,6 +83,7 @@ export function parseArgs(argv) {
       case '--config': opts.config = val(a); break;
       case '--max-pages': opts.maxPages = Number(val(a)); break;
       case '--no-probe': opts.probe = false; break;
+      case '--browser': opts.browser = true; break;
       case '--ai': opts.ai = true; break;
       case '--ai-model': opts.aiModel = val(a); break;
       case '--ai-max-pages': opts.aiMaxPages = Number(val(a)); break;
@@ -160,7 +163,7 @@ export async function main(argv, { stdout = process.stdout, stderr = process.std
   try {
     result = await check({
       root, url, config, onlyFiles, ignore: opts.ignore, ai: opts.ai, aiModel: opts.aiModel, aiMaxPages: opts.aiMaxPages,
-      maxPages: opts.maxPages, probe: opts.probe, log: (m) => { if (env.AEO_CHECK_DEBUG) stderr.write(m + '\n'); },
+      maxPages: opts.maxPages, probe: opts.probe, browser: opts.browser, log: (m) => { if (env.AEO_CHECK_DEBUG) stderr.write(m + '\n'); },
     });
   } catch (e) {
     stderr.write(`aeo-check: ${e.message}\n`);

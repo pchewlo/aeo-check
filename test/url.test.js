@@ -1,6 +1,10 @@
 import { test } from 'node:test';
 import assert from 'node:assert/strict';
 import { check } from '../src/index.js';
+import { CTA_TEXT } from '../src/rules/_util.js';
+import { readFileSync } from 'node:fs';
+import { formatText } from '../src/report/text.js';
+import { formatMarkdown } from '../src/report/markdown.js';
 
 const SHELL = '<!doctype html><html lang="en"><head><title>Acme</title><meta name="description" content="Acme analytics for product teams and their retention reports."></head><body><div id="root"></div><script src="/assets/index.js"></script></body></html>';
 
@@ -128,4 +132,56 @@ test('url mode: a contact form the agent can fill is reached, with no finding', 
   assert.equal(r.site.journeys[0].outcome, 'reached');
   assert.match(r.site.journeys[0].steps[0].notes[0], /form with 3 fields \(name, email, message\)/);
   assert.equal(r.findings.filter((x) => x.ruleId === 'cta-journey').length, 0);
+});
+
+test('CTA_TEXT: demo and call links with or without "a"', () => {
+  for (const t of ['Request Demo', 'Request a demo', 'Book demo', 'Book a free call', 'Get your demo', 'See a live demo', 'Schedule a consultation']) assert.ok(CTA_TEXT.test(t), t);
+  for (const t of ['Demo', 'Request', 'Book Notes', 'See all', 'Get in touch']) assert.ok(!CTA_TEXT.test(t), t);
+});
+
+test('url mode: robots.txt Sitemap lines without a scheme are flagged, and /sitemap.xml is still found', async () => {
+  const fetchImpl = fakeFetch({
+    'https://acme.test/': { body: '<!doctype html><html lang="en"><head><title>Acme analytics</title></head><body><main><h1>Acme</h1></main></body></html>' },
+    'https://acme.test/robots.txt': { body: 'User-agent: *\nDisallow: /admin/\nSitemap: acme.test/sitemap.xml\n', headers: { 'content-type': 'text/plain' } },
+    'https://acme.test/sitemap.xml': { body: '<?xml version="1.0"?><urlset xmlns="http://www.sitemaps.org/schemas/sitemap/0.9"><url><loc>https://acme.test/</loc><lastmod>2026-10-01</lastmod></url></urlset>', headers: { 'content-type': 'application/xml' } },
+  });
+  const r = await check({ url: 'https://acme.test/', probe: false, fetchImpl });
+  assert.ok(!r.findings.some((f) => f.ruleId === 'sitemap-present'));
+  const f = r.findings.filter((x) => x.ruleId === 'robots-txt');
+  assert.equal(f.length, 1);
+  assert.equal(f[0].severity, 'warn');
+  assert.equal(f[0].line, 3);
+  assert.match(f[0].message, /"acme\.test\/sitemap\.xml" is not an absolute URL/);
+});
+
+test('url mode: a demo page whose form is a JavaScript Typeform embed needs a browser', async () => {
+  const doc = (body, tail = '') => `<!doctype html><html lang="en"><head><title>Acme</title></head><body><main>${body}</main>${tail}</body></html>`;
+  const nav = '<nav><a href="/">Home</a><a href="/request-demo">Request Demo</a></nav>';
+  const words = 'Acme helps clinic groups launch specialist care with clinical support, software and training for every site. '.repeat(3);
+  const flight = '<script>self.__next_f.push([1,"8f:[\\"$\\",\\"$L91\\",null,{\\"blockType\\":\\"typeformEmbed\\",\\"typeformId\\":\\"Xy7Kq2Lm\\"}]"])</script>';
+  const routes = {
+    'https://acme.test/': { body: doc(`${nav}<h1>Acme</h1><p>${words}</p><a href="/request-demo">Request Demo</a>`) },
+    'https://acme.test/request-demo': { body: doc(`${nav}<h1>Request a demo</h1><p>${words}</p><div id="tf"></div>`, flight) },
+  };
+  const fetchImpl = fakeFetch(routes);
+  const r = await check({ url: 'https://acme.test/', fetchImpl });
+  const [demo] = r.site.journeys;
+  assert.equal(demo.name, 'Request Demo');
+  assert.equal(demo.goal, 'demo');
+  assert.equal(demo.outcome, 'needs-browser');
+  assert.match(demo.steps[0].notes[0], /Typeform form \(Xy7Kq2Lm\) loaded by JavaScript/);
+  assert.equal(r.findings.find((x) => x.ruleId === 'cta-journey').severity, 'warn');
+  assert.equal(r.site.journeys[0].form, undefined, 'no share page, no summary');
+  assert.deepEqual([r.summary.agent.score, r.summary.agent.fetchOnly, r.summary.agent.browser], [50, 50, null]);
+  assert.match(formatText(r), /Agent score 50\/100  can an assistant complete the main calls to action \(fetch-only 50, run with --browser/);
+  assert.match(formatMarkdown(r), /Agent score 50\/100 \(fetch-only 50\)/);
+
+  // with the share page reachable, the journey reports what the form asks and where it sends people
+  const share = readFileSync(new URL('./fixtures/typeform-share-page.html', import.meta.url), 'utf8');
+  const r2 = await check({ url: 'https://acme.test/', fetchImpl: fakeFetch({ ...routes, 'https://form.typeform.com/to/Xy7Kq2Lm': { body: share } }) });
+  const form = r2.site.journeys[0].form;
+  assert.equal(form.required, 1);
+  assert.deepEqual(form.exits, [{ answers: ["I'm a clinician"], to: 'https://partners.acme.test/join' }]);
+  assert.equal(form.scheduler, false);
+  assert.match(r2.findings.find((x) => x.ruleId === 'cta-journey').message, /"I'm a clinician" redirects to partners\.acme\.test\/join; no booking step/);
 });
