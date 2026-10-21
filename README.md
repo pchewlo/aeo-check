@@ -2,6 +2,14 @@
 
 Answer engine optimisation (AEO) is making a site easy for ChatGPT, Claude, Perplexity, Gemini and Google's AI Overviews to fetch, understand and cite. AEO Checker reads a site's code (HTML, JSX/TSX, Vue, Svelte, Astro, Markdown, robots.txt, sitemap.xml, llms.txt) or a live URL and reports what gets in the way, with a file, line and fix for each finding, so it can run on every commit and pull request.
 
+```sh
+npx github:pchewlo/aeo-check https://your-site.com
+```
+
+![aeo-check output for a single-page app: the home page scores 31/100 because main is empty without JavaScript, a noindex header and hash routing](docs/demo.svg)
+
+You can also paste this repo's link into Claude Code, Codex or Cursor and ask it to check your site and fix what it finds.
+
 ## Install
 
 Node 18 or later. No required dependencies; the Anthropic SDK is optional and only loaded by `--ai`.
